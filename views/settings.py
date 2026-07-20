@@ -281,7 +281,7 @@ class SettingsPage(ctk.CTkFrame):
         src_path = filedialog.askopenfilename(
             title="Alege fișierul de backup de restaurat",
             initialdir=get_backup_dir() or None,
-            filetypes=[("Bază de date Biblioteca", "*.db"), ("Toate fișierele", "*.*")],
+            filetypes=[("Bază de date KenoLib", "*.db"), ("Toate fișierele", "*.*")],
             parent=self,
         )
         if not src_path:

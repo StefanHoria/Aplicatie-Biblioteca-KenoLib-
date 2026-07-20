@@ -74,7 +74,7 @@ DEFAULT_CATEGORIES = [
 ]
 
 # --- Interfață ---
-APP_TITLE = "Sistem de Gestiune Bibliotecă"
+APP_TITLE = "KenoLib"
 APP_GEOMETRY = "1250x760"
 APPEARANCE_MODE = "System"       # "System" | "Dark" | "Light"
 COLOR_THEME = "blue"

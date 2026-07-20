@@ -1,4 +1,4 @@
-# Sistem de Gestiune Bibliotecă
+# KenoLib — Sistem de Gestiune Bibliotecă
 
 Aplicație desktop (Python + CustomTkinter + SQLite) pentru gestiunea unei
 biblioteci: catalog de cărți, împrumuturi, rapoarte, import CSV masiv,
@@ -33,12 +33,12 @@ build_exe.bat
 ```
 
 (sau manual: `pip install -r requirements-build.txt` apoi
-`python -m PyInstaller --noconfirm Biblioteca.spec`)
+`python -m PyInstaller --noconfirm KenoLib.spec`)
 
-Rezultatul apare în `dist\Biblioteca\` — un folder ce conține
-`Biblioteca.exe` și dependințele sale (`_internal\`). **Pentru
-distribuire, copiază întregul folder `dist\Biblioteca`** (nu doar
-fișierul `.exe`) pe calculatorul țintă și rulează `Biblioteca.exe`
+Rezultatul apare în `dist\KenoLib\` — un folder ce conține
+`KenoLib.exe` și dependințele sale (`_internal\`). **Pentru
+distribuire, copiază întregul folder `dist\KenoLib`** (nu doar
+fișierul `.exe`) pe calculatorul țintă și rulează `KenoLib.exe`
 direct — nu necesită instalare. La prima pornire, `library.db` și
 `ml_model.joblib` se creează automat lângă executabil, în același
 folder, așa că folderul rămâne complet portabil (poate fi mutat pe un

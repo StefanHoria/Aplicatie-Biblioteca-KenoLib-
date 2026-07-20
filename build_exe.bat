@@ -9,23 +9,23 @@ if errorlevel 1 goto :error
 
 echo.
 echo Construire executabil (PyInstaller)...
-python -m PyInstaller --noconfirm Biblioteca.spec
+python -m PyInstaller --noconfirm KenoLib.spec
 if errorlevel 1 goto :error
 
 if exist ml_model.joblib (
     echo.
     echo Copiere model ML pre-antrenat langa executabil...
-    copy /Y ml_model.joblib dist\Biblioteca\ml_model.joblib >nul
+    copy /Y ml_model.joblib dist\KenoLib\ml_model.joblib >nul
 )
 
 echo.
 echo ============================================================
 echo  Gata! Aplicatia executabila se afla in:
-echo    dist\Biblioteca\Biblioteca.exe
+echo    dist\KenoLib\KenoLib.exe
 echo.
 echo  Pentru a o folosi pe alt calculator, copiaza intregul folder
-echo    dist\Biblioteca
-echo  (nu doar fisierul .exe) si ruleaza Biblioteca.exe din el.
+echo    dist\KenoLib
+echo  (nu doar fisierul .exe) si ruleaza KenoLib.exe din el.
 echo ============================================================
 pause
 exit /b 0

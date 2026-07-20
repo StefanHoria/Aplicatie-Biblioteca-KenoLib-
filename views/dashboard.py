@@ -9,6 +9,7 @@ import customtkinter as ctk
 
 from config import COLOR_DANGER_TEXT, COLOR_SUCCESS
 from utils import format_date_ro
+from views.widgets import SmoothScrollableFrame
 
 
 class StatCard(ctk.CTkFrame):
@@ -59,7 +60,7 @@ class DashboardPage(ctk.CTkFrame):
             row=0, column=0, sticky="w", padx=16, pady=(12, 4)
         )
 
-        self.activity_scroll = ctk.CTkScrollableFrame(activity_frame, fg_color="transparent")
+        self.activity_scroll = SmoothScrollableFrame(activity_frame, fg_color="transparent")
         self.activity_scroll.grid(row=1, column=0, sticky="nsew", padx=8, pady=(0, 12))
         self.activity_scroll.grid_columnconfigure(0, weight=1)
 
