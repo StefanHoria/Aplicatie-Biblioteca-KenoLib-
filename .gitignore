@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# Teste
+.pytest_cache/
+
+# Rezultate de build (regenerabile din surse cu build_exe.bat)
+build/
+dist/
+
+# Datele reale ale utilizatorului și setările locale -- nu trebuie
+# partajate/versionate (fiecare calculator își are propriul catalog).
+library.db
+settings.json
+
+# Setări Claude Code locale acestui calculator (căi specifice mașinii)
+.claude/settings.local.json
