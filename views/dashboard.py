@@ -7,22 +7,32 @@ Pagina Dashboard: panou cu statistici rapide (total cărți, cărți
 
 import customtkinter as ctk
 
-from config import COLOR_DANGER_TEXT, COLOR_SUCCESS
+from config import COLOR_DANGER_TEXT, COLOR_SUCCESS, BRAND_ACCENT
 from utils import format_date_ro
 from views.widgets import SmoothScrollableFrame
 
 
 class StatCard(ctk.CTkFrame):
-    def __init__(self, master, title, value_color=None, icon=None):
-        super().__init__(master, corner_radius=12)
-        self.grid_columnconfigure(0, weight=1)
+    def __init__(self, master, title, value_color=None, icon=None, accent=None):
+        super().__init__(master, corner_radius=10)
+        # Coloana 0 = bară-accent colorată (identitatea vizuală dusă în carduri:
+        # codează dintr-o privire tipul statisticii); coloana 1 = text.
+        self.grid_columnconfigure(1, weight=1)
+        if accent:
+            # height=1 e esențial: un CTkFrame fără height are implicit 200px,
+            # iar cu sticky="ns" ar întinde tot cardul la ~200px. Cu height=1,
+            # bara se întinde în schimb doar cât conținutul (title + value),
+            # lăsând cardul compact.
+            bar = ctk.CTkFrame(self, width=4, height=1, corner_radius=2, fg_color=accent)
+            bar.grid(row=0, column=0, rowspan=2, sticky="ns", padx=(12, 0), pady=12)
+        text_padx = (12, 18) if accent else (18, 18)
         display_title = f"{icon}  {title}" if icon else title
-        self.title_label = ctk.CTkLabel(self, text=display_title, font=("", 14), text_color="gray")
-        self.title_label.grid(row=0, column=0, padx=20, pady=(16, 0), sticky="w")
+        self.title_label = ctk.CTkLabel(self, text=display_title, font=("", 13), text_color="gray")
+        self.title_label.grid(row=0, column=1, padx=text_padx, pady=(12, 0), sticky="w")
         self.value_label = ctk.CTkLabel(
-            self, text="0", font=("", 34, "bold"), text_color=value_color
+            self, text="0", font=("", 26, "bold"), text_color=value_color
         )
-        self.value_label.grid(row=1, column=0, padx=20, pady=(0, 16), sticky="w")
+        self.value_label.grid(row=1, column=1, padx=text_padx, pady=(2, 12), sticky="w")
 
     def set_value(self, value):
         self.value_label.configure(text=str(value))
@@ -40,14 +50,17 @@ class DashboardPage(ctk.CTkFrame):
             row=0, column=0, columnspan=3, sticky="w", padx=24, pady=(20, 10)
         )
 
-        self.total_card = StatCard(self, "Total cărți în catalog", icon="📚")
+        self.total_card = StatCard(self, "Total cărți în catalog", icon="📚", accent=BRAND_ACCENT)
         self.total_card.grid(row=1, column=0, sticky="ew", padx=(24, 8), pady=8)
 
-        self.borrowed_card = StatCard(self, "Cărți împrumutate în acest moment", icon="🔄")
+        self.borrowed_card = StatCard(
+            self, "Cărți împrumutate în acest moment", icon="🔄", accent=COLOR_SUCCESS
+        )
         self.borrowed_card.grid(row=1, column=1, sticky="ew", padx=8, pady=8)
 
         self.overdue_card = StatCard(
-            self, "Restanțieri (termen depășit)", value_color=COLOR_DANGER_TEXT, icon="⚠️"
+            self, "Restanțieri (termen depășit)", value_color=COLOR_DANGER_TEXT,
+            icon="⚠️", accent=COLOR_DANGER_TEXT
         )
         self.overdue_card.grid(row=1, column=2, sticky="ew", padx=(8, 24), pady=8)
 

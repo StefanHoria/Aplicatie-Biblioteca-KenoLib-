@@ -13,6 +13,10 @@ from tkinter import ttk
 
 import customtkinter as ctk
 
+from config import (
+    BRAND_ACCENT, BRAND_ACCENT_DARK, BRAND_ROW_SELECT_LIGHT, BRAND_ROW_SELECT_DARK,
+)
+
 TREEVIEW_STYLE_NAME = "Custom.Treeview"
 
 
@@ -29,12 +33,17 @@ def style_treeview(style: ttk.Style = None):
     style = style or ttk.Style()
     style.theme_use("default")
 
+    # header_fg = accentul de brand: textul antetului preia albastrul KenoLib,
+    # legând tabelele de restul identității vizuale (butoane, carduri, sidebar).
+    # selected = tot o nuanță de brand, nu albastrul generic dinainte.
     if is_dark_mode():
-        bg, fg, field_bg, header_bg = "#2b2b2b", "#dce4ee", "#242424", "#333333"
-        selected = "#144870"
+        bg, fg, field_bg, header_bg = "#2b2b2b", "#dce4ee", "#242424", "#2f2f2f"
+        selected = BRAND_ROW_SELECT_DARK
+        header_fg = BRAND_ACCENT
     else:
-        bg, fg, field_bg, header_bg = "#ffffff", "#1a1a1a", "#f5f5f5", "#e5e5e5"
-        selected = "#c7dcf2"
+        bg, fg, field_bg, header_bg = "#ffffff", "#1a1a1a", "#f5f5f5", "#eaeaea"
+        selected = BRAND_ROW_SELECT_LIGHT
+        header_fg = BRAND_ACCENT_DARK
 
     style.configure(
         TREEVIEW_STYLE_NAME,
@@ -42,15 +51,18 @@ def style_treeview(style: ttk.Style = None):
         foreground=fg,
         fieldbackground=field_bg,
         borderwidth=0,
-        rowheight=28,
+        rowheight=38,       # potrivit cu fontul mai mare de mai jos
+        font=("", 13),      # aliniat cu textul de corp din restul aplicației (nav 14, etichete 13)
     )
     style.map(TREEVIEW_STYLE_NAME, background=[("selected", selected)])
     style.configure(
         f"{TREEVIEW_STYLE_NAME}.Heading",
         background=header_bg,
-        foreground=fg,
-        borderwidth=1,
+        foreground=header_fg,
+        borderwidth=0,
         relief="flat",
+        padding=(6, 8),
+        font=("", 13, "bold"),
     )
     style.map(f"{TREEVIEW_STYLE_NAME}.Heading", background=[("active", header_bg)])
     return style

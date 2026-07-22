@@ -77,7 +77,19 @@ DEFAULT_CATEGORIES = [
 APP_TITLE = "KenoLib"
 APP_GEOMETRY = "1250x760"
 APPEARANCE_MODE = "System"       # "System" | "Dark" | "Light"
-COLOR_THEME = "blue"
+COLOR_THEME = "blue"             # temă CTk de bază; accentul e apoi rescris cu culorile de brand de mai jos
+
+# --- Identitate vizuală (accent de brand, derivat din iconița KenoLib) ---
+# Albastrul din fundalul iconiței devine accentul întregii aplicații, în locul
+# albastrului standard CustomTkinter -- aplicat consecvent la butoane, meniuri,
+# bara de progres, indicatorul din sidebar, selecția din tabele etc.
+# Perechile sunt [mod_luminos, mod_întunecat]: nuanța vie pentru fundal deschis,
+# una mai adâncă pentru fundal întunecat / stare hover.
+BRAND_ACCENT = "#3e8ede"           # albastrul iconiței (accent principal, mod luminos)
+BRAND_ACCENT_DARK = "#2e6fb0"      # varianta mai adâncă (mod întunecat / hover în mod luminos)
+BRAND_ACCENT_DARKER = "#245a93"    # hover în mod întunecat
+BRAND_ROW_SELECT_LIGHT = "#cfe3f9"  # fundal rând selectat în tabel (mod luminos)
+BRAND_ROW_SELECT_DARK = "#1e4d78"   # fundal rând selectat în tabel (mod întunecat)
 
 # --- Culori de stare (folosite consecvent în toate paginile) ---
 # Fiecare stare are, unde e cazul, două variante: "TEXT" (mai deschisă,
