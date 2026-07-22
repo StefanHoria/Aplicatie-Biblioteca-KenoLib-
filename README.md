@@ -1,9 +1,10 @@
 # KenoLib — Sistem de Gestiune Bibliotecă
 
 Aplicație desktop (Python + CustomTkinter + SQLite) pentru gestiunea unei
-biblioteci: catalog de cărți, împrumuturi, rapoarte, import CSV masiv,
-scanner de coduri de bare GM65 și clasificare automată a categoriilor
-prin machine learning.
+biblioteci: catalog de cărți, cititori, împrumuturi (cu urmărirea
+exemplarelor) și rezervări, rapoarte, inventar cu export CSV/PDF și etichete
+cu cod de bare, import CSV masiv, scanner de coduri de bare GM65 și
+clasificare automată a categoriilor prin machine learning.
 
 ## Instalare
 
@@ -60,15 +61,38 @@ cu Python.
 | `ml_classifier.py` | Clasificator ML (TF-IDF + Regresie Logistică) pentru sugestii de categorie |
 | `scanner_service.py` | Ascultare pe port serial (thread separat) pentru scannerul GM65 |
 | `api_service.py` | Interogare Google Books / Open Library, după ISBN sau după titlu+autor |
+| `pdf_service.py` | Generare PDF: export inventar/rapoarte + etichete cu cod de bare (reportlab) |
 | `gui_app.py` | Fereastra principală, sidebar, navigare |
 | `views/dashboard.py` | Pagina Dashboard (statistici + activitate recentă) |
 | `views/catalog.py` | Pagina Catalog Cărți (tabel, căutare, CRUD) |
+| `views/borrowers.py` | Pagina Cititori (listă cititori + istoric/împrumuturi per cititor) |
 | `views/loans.py` | Pagina Împrumuturi active (restanțe evidențiate roșu) |
-| `views/reports.py` | Pagina Rapoarte (cărți/categorie, istoric tranzacții) |
-| `views/inventory.py` | Pagina Inventar (listă completă, alfabetic sau pe categorii, export CSV) |
+| `views/reservations.py` | Pagina Rezervări (coadă de așteptare pentru cărți indisponibile) |
+| `views/reports.py` | Pagina Rapoarte (cărți/categorie, istoric tranzacții) + export PDF |
+| `views/inventory.py` | Pagina Inventar (listă completă; export CSV/PDF + etichete cod de bare) |
 | `views/import_view.py` | Import CSV cu mapare coloane + clasificare ML |
-| `views/dialogs.py` | Ferestre modale: adăugare/editare carte, împrumutător, împrumut |
+| `views/settings.py` | Pagina Setări (backup, auto-backup, retenție, zile împrumut) |
+| `views/dialogs.py` | Ferestre modale: carte, cititor, împrumut, rezervare |
 | `main.py` | Punct de pornire |
+
+## Cititori, împrumuturi și rezervări
+
+Pagina **Cititori** listează toate persoanele care împrumută, cu numărul de
+cărți pe care le au acum la ele și câte sunt restante (evidențiate roșu).
+Selectând un cititor, panoul din dreapta arată datele lui de contact,
+cărțile împrumutate acum (cu scadențe) și istoricul returnărilor. Un cititor
+care încă are cărți nereturnate nu poate fi șters (ca să nu se piardă
+înregistrările de împrumut încă deschise).
+
+**Exemplare multiple.** O carte cu mai multe exemplare (`Nr. exemplare`)
+poate fi împrumutată de mai multe ori simultan — devine „indisponibilă” abia
+când toate exemplarele sunt la cititori. La efectuarea unui împrumut se văd
+doar cărțile cu cel puțin un exemplar liber, împreună cu numărul rămas.
+
+**Rezervări.** Pentru o carte ale cărei exemplare sunt toate împrumutate, un
+cititor poate fi pus la coadă din pagina **Rezervări**. Când cartea se
+întoarce, aplicația anunță cine e următorul la rând, iar rezervarea apare
+evidențiată verde („Disponibilă acum”); după ce i-o dai, o marchezi „onorată”.
 
 ## Scanner GM65
 
@@ -195,11 +219,22 @@ de verificat/rafinat de bibliotecar cu tabelele oficiale CZU. La import
 CSV, dacă nu e mapată o coloană CZU sau celula e goală, se completează
 automat aceeași sugestie.
 
-## Inventar
+## Inventar, export PDF și etichete
 
 Pagina **Inventar** generează lista completă a cărților, fie sortată
 alfabetic după titlu, fie grupată pe categorie (și alfabetic în
 interiorul fiecăreia). Afișează și un rezumat (număr de titluri, total
 exemplare, valoare totală — calculată din preț × exemplare pentru
-cărțile care au preț completat) și permite exportul listei ca fișier
-CSV.
+cărțile care au preț completat).
+
+Din meniul **„Acțiuni”** al paginii se pot:
+- **Exporta lista ca CSV** — pentru prelucrare în alt program;
+- **Exporta lista ca PDF** — un tabel oficial, printabil (A4);
+- **Genera etichete de raft (PDF)** — o grilă de etichete cu titlu, autor,
+  CZU și un **cod de bare Code128 scanabil** (ISBN-ul cărții, sau un cod
+  intern `KL…` pentru cărțile fără ISBN). Astfel se închide bucla scanner-ului
+  GM65: scanezi la intrare, dar poți și genera etichete pentru propriul fond.
+
+Pagina **Rapoarte** are, la rândul ei, un buton **„Exportă PDF”** (statistici
++ cărți pe categorie + top împrumuturi). Export-urile PDF folosesc `reportlab`
+(inclus în `requirements.txt`) și redau corect diacriticele românești.
