@@ -17,6 +17,7 @@ import customtkinter as ctk
 from config import (
     APP_TITLE, APP_GEOMETRY, APPEARANCE_MODE, COLOR_THEME, SCANNER_POLL_INTERVAL_MS,
     COLOR_SUCCESS, ICON_PATH,
+    BRAND_ACCENT, BRAND_ACCENT_DARK, BRAND_ACCENT_DARKER,
 )
 from database import Database
 from ml_classifier import BookClassifier
@@ -25,19 +26,57 @@ from settings_service import maybe_run_auto_backup
 
 from views.dashboard import DashboardPage
 from views.catalog import CatalogPage
+from views.borrowers import BorrowersPage
 from views.loans import LoansPage
+from views.reservations import ReservationsPage
 from views.reports import ReportsPage
 from views.inventory import InventoryPage
 from views.import_view import ImportPage
 from views.settings import SettingsPage
 
-NAV_INDICATOR_HEIGHT = 26
-NAV_BUTTON_HEIGHT = 40
+NAV_INDICATOR_HEIGHT = 24
+NAV_BUTTON_HEIGHT = 36  # compact: 9 elemente de navigare + scanner + temă trebuie să încapă și la înălțimea minimă
+
+
+def apply_brand_theme():
+    """Rescrie accentul temei CTk (albastrul standard) cu albastrul din
+    identitatea vizuală KenoLib, aplicat consecvent la toate widget-urile cu
+    accent. CTk citește culorile din `ThemeManager.theme` la crearea fiecărui
+    widget, deci e suficient să modificăm dicționarul temei o singură dată, la
+    pornire, înainte de a construi interfața -- inclusiv indicatorul din sidebar
+    și butonul activ de navigare, care oricum citesc `CTkButton.fg_color`.
+    Butoanele cu culoare explicită (ex. ștergere = roșu) rămân neatinse, fiindcă
+    modificăm doar valorile *implicite* ale temei."""
+    fg = [BRAND_ACCENT, BRAND_ACCENT_DARK]           # [mod luminos, mod întunecat]
+    hover = [BRAND_ACCENT_DARK, BRAND_ACCENT_DARKER]
+    hover2 = [BRAND_ACCENT_DARKER, BRAND_ACCENT_DARKER]
+    accent_map = {
+        "CTkButton": {"fg_color": fg, "hover_color": hover},
+        "CTkOptionMenu": {"fg_color": fg, "button_color": hover, "button_hover_color": hover2},
+        "CTkComboBox": {"button_color": hover, "button_hover_color": hover2},
+        "CTkCheckBox": {"fg_color": fg, "hover_color": hover},
+        "CTkRadioButton": {"fg_color": fg, "hover_color": hover},
+        "CTkSwitch": {"progress_color": fg},
+        "CTkSlider": {"button_color": fg, "button_hover_color": hover, "progress_color": fg},
+        "CTkProgressBar": {"progress_color": fg},
+        "CTkSegmentedButton": {"selected_color": fg, "selected_hover_color": hover},
+    }
+    theme = ctk.ThemeManager.theme
+    for widget, keys in accent_map.items():
+        widget_theme = theme.get(widget)
+        if not widget_theme:
+            continue
+        for key, value in keys.items():
+            if key in widget_theme:
+                widget_theme[key] = value
+
 
 NAV_ITEMS = [
     ("dashboard", "🏠  Dashboard", DashboardPage),
     ("catalog", "📚  Catalog Cărți", CatalogPage),
+    ("borrowers", "👤  Cititori", BorrowersPage),
     ("loans", "🔄  Împrumuturi active", LoansPage),
+    ("reservations", "🔖  Rezervări", ReservationsPage),
     ("reports", "📊  Rapoarte", ReportsPage),
     ("inventory", "📋  Inventar", InventoryPage),
     ("import", "📥  Import Date", ImportPage),
@@ -66,6 +105,7 @@ class App(ctk.CTk):
 
         ctk.set_appearance_mode(APPEARANCE_MODE)
         ctk.set_default_color_theme(COLOR_THEME)
+        apply_brand_theme()  # rescrie accentul cu albastrul de brand KenoLib
 
         self.title(APP_TITLE)
         self.geometry(APP_GEOMETRY)
@@ -98,13 +138,20 @@ class App(ctk.CTk):
         self.pages = {}
         self.nav_buttons = {}
         self.current_page = None
-        self._transitioning_page = None
-        self._page_anim_id = None
         self._nav_anim_id = None
         self._nav_indicator_y = None
 
         self._build_sidebar()
         self._build_content()
+
+        # Pre-încălzim pagina Rapoarte -- singura suficient de grea (reconstruiește
+        # zeci de widget-uri CTk) încât primul ei render (~200ms) să se simtă ca
+        # lag. Făcut aici, înainte de prima afișare, costul e absorbit în pornire
+        # (sub ecranul de încărcare, invizibil), iar prima intrare pe pagină e un
+        # cache-hit instantaneu (vezi ReportsPage.refresh). Vizitele ulterioare
+        # rămân instantanee cât timp datele nu se schimbă.
+        self.pages["reports"].refresh()
+
         self.update_idletasks()  # geometria butoanelor trebuie calculată înainte de show_page
         self.show_page("dashboard")
 
@@ -160,7 +207,7 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(
             sidebar, text="📖 KenoLib", font=("", 20, "bold")
-        ).grid(row=0, column=0, padx=20, pady=(24, 20), sticky="w")
+        ).grid(row=0, column=0, padx=20, pady=(18, 12), sticky="w")
 
         for i, (key, label, _) in enumerate(NAV_ITEMS, start=1):
             btn = ctk.CTkButton(
@@ -169,7 +216,7 @@ class App(ctk.CTk):
                 height=NAV_BUTTON_HEIGHT, font=("", 14),
                 command=lambda k=key: self.show_page(k),
             )
-            btn.grid(row=i, column=0, sticky="ew", padx=12, pady=6)
+            btn.grid(row=i, column=0, sticky="ew", padx=12, pady=4)
             self.nav_buttons[key] = btn
 
         # Bară de accent care alunecă spre butonul activ la navigare
@@ -180,9 +227,14 @@ class App(ctk.CTk):
             fg_color=ctk.ThemeManager.theme["CTkButton"]["fg_color"],
         )
 
+        # Linie subțire de separare între navigare și controalele de jos
+        # (scanner + temă) -- structurează sidebar-ul fără să adauge zgomot.
+        divider = ctk.CTkFrame(sidebar, height=1, fg_color=("gray75", "gray30"))
+        divider.grid(row=len(NAV_ITEMS) + 4, column=0, sticky="ew", padx=16, pady=(0, 10))
+
         # --- Secțiune scanner GM65 ---
         scanner_frame = ctk.CTkFrame(sidebar, fg_color="transparent")
-        scanner_frame.grid(row=len(NAV_ITEMS) + 4, column=0, sticky="ew", padx=16, pady=(10, 4))
+        scanner_frame.grid(row=len(NAV_ITEMS) + 5, column=0, sticky="ew", padx=16, pady=(0, 4))
         scanner_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(scanner_frame, text="Scanner GM65", font=("", 12, "bold"),
@@ -211,7 +263,7 @@ class App(ctk.CTk):
 
         # --- Comutator temă Dark/Light ---
         appearance_row = ctk.CTkFrame(sidebar, fg_color="transparent")
-        appearance_row.grid(row=len(NAV_ITEMS) + 5, column=0, sticky="ew", padx=16, pady=(8, 20))
+        appearance_row.grid(row=len(NAV_ITEMS) + 6, column=0, sticky="ew", padx=16, pady=(8, 20))
         ctk.CTkLabel(appearance_row, text="Temă:").grid(row=0, column=0, sticky="w")
         self.appearance_menu = ctk.CTkOptionMenu(
             appearance_row, values=["System", "Light", "Dark"], width=110,
@@ -234,7 +286,6 @@ class App(ctk.CTk):
         container.grid(row=0, column=1, sticky="nsew")
         container.grid_rowconfigure(0, weight=1)
         container.grid_columnconfigure(0, weight=1)
-        self.content_container = container
 
         for key, _, page_class in NAV_ITEMS:
             page = page_class(container, self)
@@ -250,18 +301,17 @@ class App(ctk.CTk):
         self._move_nav_indicator(key, animate=not is_first)
         self.current_page = key
 
-        if is_first:
-            page.tkraise()
-            if hasattr(page, "on_show"):
-                page.on_show()
-        else:
-            # on_show() (adesea o reîmprospătare grea -- reconstruiește
-            # tabele/liste întregi) se declanșează abia în done(), după ce
-            # animația s-a încheiat complet -- altfel refresh-ul blochează
-            # firul unic al Tkinter chiar în mijlocul tranziției, animația
-            # îngheață, iar pagina veche rămâne vizibilă dedesubt până
-            # termină reîmprospătarea (exact senzația de "lag"/overlap).
-            self._zoom_in_page(page)
+        # Comutare instantă. Toate paginile sunt deja construite și așezate
+        # în aceeași celulă de grid (row 0 / col 0); tkraise() doar schimbă
+        # ordinea de stivuire, fără niciun re-layout -- deci e instantaneu și
+        # complet lipsit de flicker. Tkinter nu are compozitor / dublu-
+        # buffering care să poată *anima* mutarea unei pagini complexe fără
+        # flicker sau rămâneri în urmă, așa că o comutare instantă e de fapt
+        # cea mai fluidă opțiune posibilă. (Animația fină rămâne doar la bara
+        # de accent din sidebar, care e un widget mic și ieftin de mutat.)
+        page.tkraise()
+        if hasattr(page, "on_show"):
+            page.on_show()
 
     def _move_nav_indicator(self, key, animate):
         # NOTĂ: se folosește place_configure(), nu place() -- CustomTkinter
@@ -288,40 +338,6 @@ class App(ctk.CTk):
             self._nav_indicator_y = target_y
 
         self._animate(160, step, done, cancel_attr="_nav_anim_id")
-
-    def _zoom_in_page(self, page):
-        # Tranziție discretă: pagina nouă se "așază" dintr-un decalaj vertical
-        # minim (14px) peste cea veche -- doar o translație de poziție (x/y),
-        # NU o redimensionare (relwidth/relheight rămân fixe la 1/1 pe toată
-        # durata). O redimensionare la fiecare cadru ar forța Tkinter să
-        # recalculeze layout-ul tuturor widget-urilor din pagină (costisitor
-        # mai ales pe pagini cu liste scrollabile, ex. Rapoarte -- vizibil ca
-        # blocaje/rămas în urmă). O simplă mutare de poziție e ieftină
-        # indiferent cât de complexă e pagina, deci rămâne fluidă peste tot.
-        if self._transitioning_page is not None and self._transitioning_page is not page:
-            self._transitioning_page.place_forget()
-            self._transitioning_page.grid(row=0, column=0, sticky="nsew")
-
-        self._transitioning_page = page
-        start_offset = 14  # px
-
-        # place_configure() -- vezi nota din _move_nav_indicator; x/y sunt deja
-        # pixeli reali, nu au nevoie de nicio scalare suplimentară.
-        page.place_configure(x=0, y=-start_offset, relwidth=1, relheight=1)
-        page.lift()
-
-        def step(t):
-            page.place_configure(y=int(-start_offset * (1 - t)))
-
-        def done():
-            page.place_forget()
-            page.grid(row=0, column=0, sticky="nsew")
-            page.tkraise()
-            self._transitioning_page = None
-            if hasattr(page, "on_show"):
-                page.on_show()
-
-        self._animate(150, step, done, cancel_attr="_page_anim_id")
 
     # ------------------------------------------------------------------
     # Scanner GM65
