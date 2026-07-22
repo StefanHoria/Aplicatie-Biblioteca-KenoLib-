@@ -55,6 +55,19 @@ CREATE TABLE IF NOT EXISTS loans (
     due_date    TEXT NOT NULL,
     return_date TEXT
 );
+
+-- Rezervări: un cititor "se pune la coadă" pentru o carte ale cărei
+-- exemplare sunt toate împrumutate acum. fulfilled_date NULL = rezervare
+-- activă (în așteptare); completat = onorată/închisă. CREATE ... IF NOT
+-- EXISTS => se adaugă automat și la bazele de date create cu versiuni mai
+-- vechi, la prima pornire (executescript rulează la fiecare inițializare).
+CREATE TABLE IF NOT EXISTS reservations (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id        INTEGER NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+    borrower_id    INTEGER NOT NULL REFERENCES borrowers(id) ON DELETE CASCADE,
+    reserved_date  TEXT NOT NULL,
+    fulfilled_date TEXT
+);
 """
 
 
@@ -202,15 +215,48 @@ class Database:
         return _rows_to_list(rows)
 
     def get_available_books(self, search=None):
-        """Cărți care nu au în acest moment un împrumut activ (fără dată de retur)."""
+        """Cărți cu cel puțin un exemplar liber acum. Respectă numărul de
+        exemplare (`copies`): o carte cu N exemplare poate fi împrumutată de
+        N ori simultan, nu doar o dată. `available_copies` = exemplare - nr.
+        împrumuturi active."""
         conn = self._connect()
         base = """
-            SELECT books.*, categories.name AS category_name
+            SELECT books.*, categories.name AS category_name,
+                   books.copies - COALESCE(active.cnt, 0) AS available_copies
             FROM books
             LEFT JOIN categories ON categories.id = books.category_id
-            WHERE books.id NOT IN (
-                SELECT book_id FROM loans WHERE return_date IS NULL
-            )
+            LEFT JOIN (
+                SELECT book_id, COUNT(*) AS cnt
+                FROM loans WHERE return_date IS NULL
+                GROUP BY book_id
+            ) AS active ON active.book_id = books.id
+            WHERE books.copies - COALESCE(active.cnt, 0) > 0
+        """
+        if search:
+            like = f"%{search}%"
+            rows = conn.execute(
+                base + " AND (books.title LIKE ? OR books.author LIKE ? OR books.isbn LIKE ?) ORDER BY books.title",
+                (like, like, like),
+            ).fetchall()
+        else:
+            rows = conn.execute(base + " ORDER BY books.title").fetchall()
+        return _rows_to_list(rows)
+
+    def get_unavailable_books(self, search=None):
+        """Cărți fără niciun exemplar liber acum (toate exemplarele
+        împrumutate) -- candidatele naturale pentru o rezervare."""
+        conn = self._connect()
+        base = """
+            SELECT books.*, categories.name AS category_name,
+                   books.copies - COALESCE(active.cnt, 0) AS available_copies
+            FROM books
+            LEFT JOIN categories ON categories.id = books.category_id
+            LEFT JOIN (
+                SELECT book_id, COUNT(*) AS cnt
+                FROM loans WHERE return_date IS NULL
+                GROUP BY book_id
+            ) AS active ON active.book_id = books.id
+            WHERE books.copies - COALESCE(active.cnt, 0) <= 0
         """
         if search:
             like = f"%{search}%"
@@ -291,6 +337,54 @@ class Database:
             "SELECT * FROM borrowers WHERE id = ?", (borrower_id,)
         ).fetchone()
         return _row_to_dict(row)
+
+    def get_borrowers_with_stats(self, search=None):
+        """Cititorii, fiecare cu numărul de cărți împrumutate acum
+        (`active_count`) și câte dintre ele sunt restante (`overdue_count`)
+        -- pentru pagina de gestiune a cititorilor, fără N interogări
+        separate. Subinterogările corelate numără per cititor, deci un
+        cititor fără împrumuturi apare corect cu 0/0."""
+        conn = self._connect()
+        today = date.today().isoformat()
+        # `today` alimentează ?-ul din subinterogarea overdue_count (apare
+        # primul în SQL); parametrii de căutare (dacă există) vin după.
+        params = [today]
+        where = ""
+        if search:
+            like = f"%{search}%"
+            where = "WHERE b.name LIKE ? OR b.email LIKE ? OR b.phone LIKE ?"
+            params += [like, like, like]
+        rows = conn.execute(
+            f"""
+            SELECT b.*,
+                (SELECT COUNT(*) FROM loans l
+                 WHERE l.borrower_id = b.id AND l.return_date IS NULL) AS active_count,
+                (SELECT COUNT(*) FROM loans l
+                 WHERE l.borrower_id = b.id AND l.return_date IS NULL AND l.due_date < ?)
+                 AS overdue_count
+            FROM borrowers b
+            {where}
+            ORDER BY b.name
+            """,
+            params,
+        ).fetchall()
+        return _rows_to_list(rows)
+
+    def get_loans_for_borrower(self, borrower_id):
+        """Toate împrumuturile unui cititor (active + returnate), cu titlul
+        cărții. Cele active (nereturnate) sunt primele, apoi după scadență."""
+        conn = self._connect()
+        rows = conn.execute(
+            """
+            SELECT loans.*, books.title AS book_title, books.author AS book_author
+            FROM loans
+            JOIN books ON books.id = loans.book_id
+            WHERE loans.borrower_id = ?
+            ORDER BY (loans.return_date IS NOT NULL), loans.due_date ASC, loans.loan_date DESC
+            """,
+            (borrower_id,),
+        ).fetchall()
+        return _rows_to_list(rows)
 
     def add_borrower(self, name, email, phone, registered_date=None):
         registered_date = registered_date or date.today().isoformat()
@@ -382,6 +476,85 @@ class Database:
             conn = self._connect()
             conn.execute(
                 "UPDATE loans SET return_date = ? WHERE id = ?", (return_date, loan_id)
+            )
+            conn.commit()
+
+    # ------------------------------------------------------------------
+    # Rezervări (reservations)
+    # ------------------------------------------------------------------
+    def add_reservation(self, book_id, borrower_id, reserved_date=None):
+        reserved_date = reserved_date or date.today().isoformat()
+        with self._write_lock:
+            conn = self._connect()
+            cur = conn.execute(
+                """INSERT INTO reservations (book_id, borrower_id, reserved_date, fulfilled_date)
+                   VALUES (?, ?, ?, NULL)""",
+                (book_id, borrower_id, reserved_date),
+            )
+            conn.commit()
+            return cur.lastrowid
+
+    def has_active_reservation(self, book_id, borrower_id):
+        """True dacă acest cititor are deja o rezervare activă la această
+        carte (previne duplicatele)."""
+        conn = self._connect()
+        row = conn.execute(
+            """SELECT 1 FROM reservations
+               WHERE book_id = ? AND borrower_id = ? AND fulfilled_date IS NULL LIMIT 1""",
+            (book_id, borrower_id),
+        ).fetchone()
+        return row is not None
+
+    def get_active_reservations(self):
+        """Toate rezervările active (în așteptare), în ordinea în care au fost
+        făcute (coada). `available_copies > 0` marchează rezervările a căror
+        carte tocmai s-a eliberat -- gata de onorat."""
+        conn = self._connect()
+        rows = conn.execute(
+            """
+            SELECT r.*, books.title AS book_title, books.copies AS copies,
+                   borrowers.name AS borrower_name,
+                   books.copies - COALESCE(active.cnt, 0) AS available_copies
+            FROM reservations r
+            JOIN books ON books.id = r.book_id
+            JOIN borrowers ON borrowers.id = r.borrower_id
+            LEFT JOIN (
+                SELECT book_id, COUNT(*) AS cnt
+                FROM loans WHERE return_date IS NULL
+                GROUP BY book_id
+            ) AS active ON active.book_id = r.book_id
+            WHERE r.fulfilled_date IS NULL
+            ORDER BY r.reserved_date ASC, r.id ASC
+            """
+        ).fetchall()
+        return _rows_to_list(rows)
+
+    def get_reservations_for_book(self, book_id):
+        """Coada de rezervări active pentru o carte (prima = următorul la rând)."""
+        conn = self._connect()
+        rows = conn.execute(
+            """SELECT r.*, borrowers.name AS borrower_name
+               FROM reservations r JOIN borrowers ON borrowers.id = r.borrower_id
+               WHERE r.book_id = ? AND r.fulfilled_date IS NULL
+               ORDER BY r.reserved_date ASC, r.id ASC""",
+            (book_id,),
+        ).fetchall()
+        return _rows_to_list(rows)
+
+    def cancel_reservation(self, reservation_id):
+        with self._write_lock:
+            conn = self._connect()
+            conn.execute("DELETE FROM reservations WHERE id = ?", (reservation_id,))
+            conn.commit()
+
+    def fulfill_reservation(self, reservation_id, fulfilled_date=None):
+        """Marchează o rezervare drept onorată (cartea i-a fost dată)."""
+        fulfilled_date = fulfilled_date or date.today().isoformat()
+        with self._write_lock:
+            conn = self._connect()
+            conn.execute(
+                "UPDATE reservations SET fulfilled_date = ? WHERE id = ?",
+                (fulfilled_date, reservation_id),
             )
             conn.commit()
 
