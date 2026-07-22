@@ -6,11 +6,13 @@ de împrumuturi (istoric, active, restanțieri), numărul de cărți și
 împrumutate, și istoricul complet al tranzacțiilor de împrumut/retur.
 """
 
-from tkinter import ttk
+import os
+from tkinter import ttk, filedialog, messagebox
 
 import customtkinter as ctk
 
-from config import COLOR_DANGER_TEXT, COLOR_SUCCESS
+import pdf_service
+from config import COLOR_DANGER_TEXT, COLOR_SUCCESS, BRAND_ACCENT
 from utils import style_treeview, TREEVIEW_STYLE_NAME, format_date_ro, stripe_color
 from views.dashboard import StatCard
 from views.dialogs import BookDialog
@@ -23,6 +25,7 @@ class ReportsPage(ctk.CTkFrame):
     def __init__(self, master, app):
         super().__init__(master, fg_color="transparent")
         self.app = app
+        self._last_signature = None  # cache: sări reconstrucția dacă datele nu s-au schimbat
 
         self.grid_columnconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=2)
@@ -33,21 +36,30 @@ class ReportsPage(ctk.CTkFrame):
         header.grid(row=0, column=0, columnspan=2, sticky="ew", padx=24, pady=(20, 10))
         header.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(header, text="Rapoarte", font=("", 24, "bold")).grid(row=0, column=0, sticky="w")
-        ctk.CTkButton(header, text="Reîmprospătează", width=140, command=self.refresh).grid(
-            row=0, column=1, sticky="e"
-        )
+        ctk.CTkButton(
+            header, text="Exportă PDF", width=120, command=self._export_pdf,
+        ).grid(row=0, column=1, sticky="e", padx=(0, 8))
+        ctk.CTkButton(
+            header, text="Reîmprospătează", width=140,
+            command=lambda: self.refresh(force=True),
+        ).grid(row=0, column=2, sticky="e")
 
         # --- Carduri statistici împrumuturi ---
         stats_row = ctk.CTkFrame(self, fg_color="transparent")
         stats_row.grid(row=1, column=0, columnspan=2, sticky="ew", padx=24, pady=(0, 14))
         stats_row.grid_columnconfigure((0, 1, 2), weight=1)
 
-        self.total_loans_card = StatCard(stats_row, "Total împrumuturi (istoric)", icon="📖")
+        self.total_loans_card = StatCard(
+            stats_row, "Total împrumuturi (istoric)", icon="📖", accent=BRAND_ACCENT
+        )
         self.total_loans_card.grid(row=0, column=0, sticky="ew", padx=(0, 8))
-        self.active_loans_card = StatCard(stats_row, "Împrumuturi active", icon="🔄")
+        self.active_loans_card = StatCard(
+            stats_row, "Împrumuturi active", icon="🔄", accent=COLOR_SUCCESS
+        )
         self.active_loans_card.grid(row=0, column=1, sticky="ew", padx=8)
         self.overdue_loans_card = StatCard(
-            stats_row, "Restanțieri", value_color=COLOR_DANGER_TEXT, icon="⚠️"
+            stats_row, "Restanțieri", value_color=COLOR_DANGER_TEXT, icon="⚠️",
+            accent=COLOR_DANGER_TEXT
         )
         self.overdue_loans_card.grid(row=0, column=2, sticky="ew", padx=(8, 0))
 
@@ -109,6 +121,28 @@ class ReportsPage(ctk.CTkFrame):
     def on_show(self):
         self.refresh()
 
+    def _export_pdf(self):
+        path = filedialog.asksaveasfilename(
+            title="Exportă raport (PDF)", defaultextension=".pdf",
+            filetypes=[("Fișiere PDF", "*.pdf")], initialfile="raport.pdf",
+        )
+        if not path:
+            return
+        try:
+            pdf_service.export_report_pdf(
+                path,
+                self.app.db.get_dashboard_stats(),
+                self.app.db.get_books_per_category(),
+                self.app.db.get_top_borrowed_books(limit=TOP_BOOKS_LIMIT),
+            )
+        except Exception as exc:
+            messagebox.showerror("Eroare export PDF", str(exc), parent=self)
+            return
+        try:
+            os.startfile(path)  # Windows -- platforma țintă
+        except Exception:
+            messagebox.showinfo("Gata", f"Raportul a fost salvat în:\n{path}", parent=self)
+
     def _open_category(self, category_name):
         """Deschide Inventarul, filtrat pe categoria pe care s-a dat click."""
         self.app.show_page("inventory")
@@ -119,18 +153,45 @@ class ReportsPage(ctk.CTkFrame):
         if book:
             BookDialog(self, self.app, book=book, on_saved=self.refresh)
 
-    def refresh(self):
+    def refresh(self, force=False):
+        # Stilurile ttk (treeview) se reaplică mereu -- ttk NU se
+        # re-stilizează singur la schimbarea temei, spre deosebire de
+        # widget-urile CTk. E ieftin și trebuie făcut chiar și când sărim
+        # reconstrucția de mai jos (ex. comutare Dark/Light pe date identice).
         style_treeview()
         self.tree.tag_configure("oddrow", background=stripe_color())
+        self.tree.tag_configure("returned", foreground=COLOR_SUCCESS)
 
         stats = self.app.db.get_dashboard_stats()
+        categories = self.app.db.get_books_per_category()
+        top_books = self.app.db.get_top_borrowed_books(limit=TOP_BOOKS_LIMIT)
+        loans = self.app.db.get_all_loans()
+
+        # Reconstruirea widget-urilor CTk (zeci-sute de etichete/frame-uri,
+        # fiecare cu desen pe canvas + aplicare temă) e partea cu adevărat
+        # scumpă și e singurul motiv pentru care re-intrarea pe pagină avea
+        # lag. O sărim complet dacă datele afișate n-au știut nicio schimbare
+        # de la ultimul render -- interogările SQLite de mai sus sunt de ordinul
+        # microsecundelor, deci verificarea e practic gratuită. Butonul
+        # „Reîmprospătează” trece force=True ca să reconstruiască întotdeauna.
+        signature = (
+            (stats["total_loans"], stats["borrowed_count"], stats["overdue_count"]),
+            tuple((c["category_name"], c["book_count"], c["loan_count"]) for c in categories),
+            tuple((b["id"], b["title"], b.get("author"), b.get("category_name"),
+                   b["loan_count"]) for b in top_books),
+            tuple((l["book_title"], l["borrower_name"], l["loan_date"],
+                   l["due_date"], l["return_date"]) for l in loans),
+        )
+        if not force and signature == self._last_signature:
+            return
+        self._last_signature = signature
+
         self.total_loans_card.set_value(stats["total_loans"])
         self.active_loans_card.set_value(stats["borrowed_count"])
         self.overdue_loans_card.set_value(stats["overdue_count"])
 
         for widget in self.category_scroll.winfo_children():
             widget.destroy()
-        categories = self.app.db.get_books_per_category()
         if not categories:
             ctk.CTkLabel(self.category_scroll, text="Nicio categorie definită.", text_color="gray").grid(
                 row=0, column=0, sticky="w", padx=8, pady=8
@@ -158,7 +219,6 @@ class ReportsPage(ctk.CTkFrame):
 
         for widget in self.top_books_scroll.winfo_children():
             widget.destroy()
-        top_books = self.app.db.get_top_borrowed_books(limit=TOP_BOOKS_LIMIT)
         if not top_books:
             ctk.CTkLabel(
                 self.top_books_scroll, text="Nicio carte împrumutată încă.", text_color="gray"
@@ -193,7 +253,7 @@ class ReportsPage(ctk.CTkFrame):
 
         for row in self.tree.get_children():
             self.tree.delete(row)
-        for i, loan in enumerate(self.app.db.get_all_loans()):
+        for i, loan in enumerate(loans):
             returned = bool(loan["return_date"])
             tags = []
             if i % 2 == 1:

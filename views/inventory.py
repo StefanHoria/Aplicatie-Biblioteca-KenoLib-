@@ -8,10 +8,12 @@ o bibliotecă, exportabil ca fișier CSV.
 """
 
 import csv
+import os
 from tkinter import filedialog, messagebox, ttk
 
 import customtkinter as ctk
 
+import pdf_service
 from config import UNCONFIRMED_CATEGORY, COLOR_UNCONFIRMED_TEXT, COLOR_UNCONFIRMED_BG, COLOR_ROW_HIGHLIGHT_FG
 from utils import style_treeview, TREEVIEW_STYLE_NAME, stripe_color
 from views.dialogs import BookDialog
@@ -66,20 +68,29 @@ class InventoryPage(ctk.CTkFrame):
         self.category_filter.set(ALL_CATEGORIES_OPTION)
         self.category_filter.grid(row=0, column=3, padx=(0, 16))
 
-        ctk.CTkButton(toolbar, text="Generează", width=110, command=self.refresh).grid(
-            row=0, column=4, padx=4
+        # Un singur meniu „Acțiuni” în locul a patru butoane -- degajă bara de
+        # sus. Se comportă ca un buton-meniu: după alegere, eticheta revine la
+        # „Acțiuni” (nu păstrează ultima opțiune ca un selector obișnuit).
+        self._actions = {
+            "Generează lista": self.refresh,
+            "Exportă CSV": self._export_csv,
+            "Exportă PDF": self._export_pdf,
+            "Etichete de raft (PDF)": self._print_labels,
+        }
+        self.actions_menu = ctk.CTkOptionMenu(
+            toolbar, width=150, values=list(self._actions.keys()),
+            command=self._on_action,
         )
-        ctk.CTkButton(toolbar, text="Exportă CSV", width=110, command=self._export_csv).grid(
-            row=0, column=5, padx=4
-        )
+        self.actions_menu.set("Acțiuni")
+        self.actions_menu.grid(row=0, column=4, padx=4)
 
         self.summary_label = ctk.CTkLabel(toolbar, text="", text_color="gray")
-        self.summary_label.grid(row=0, column=6, padx=16)
+        self.summary_label.grid(row=0, column=5, padx=16)
 
         self.legend_label = ctk.CTkLabel(
             toolbar, text="● De Confirmat", text_color=COLOR_UNCONFIRMED_TEXT
         )
-        self.legend_label.grid(row=0, column=7, padx=(0, 4))
+        self.legend_label.grid(row=0, column=6, padx=(0, 4))
 
         table_frame = ctk.CTkFrame(self, corner_radius=12)
         table_frame.grid(row=2, column=0, sticky="nsew", padx=24, pady=(0, 24))
@@ -107,6 +118,13 @@ class InventoryPage(ctk.CTkFrame):
         )
 
     # ------------------------------------------------------------------
+    def _on_action(self, choice):
+        # revenim la eticheta neutră ca meniul să nu „rămână” pe ultima alegere
+        self.actions_menu.set("Acțiuni")
+        action = self._actions.get(choice)
+        if action:
+            action()
+
     def on_show(self):
         self._refresh_category_filter_values()
         self.refresh()
@@ -214,3 +232,51 @@ class InventoryPage(ctk.CTkFrame):
             return
 
         messagebox.showinfo("Export reușit", f"Inventarul a fost salvat în:\n{path}", parent=self)
+
+    def _export_pdf(self):
+        if not self._current_rows:
+            messagebox.showinfo("Inventar gol", "Nu există cărți de exportat.", parent=self)
+            return
+        path = filedialog.asksaveasfilename(
+            title="Exportă inventar (PDF)", defaultextension=".pdf",
+            filetypes=[("Fișiere PDF", "*.pdf")], initialfile="inventar.pdf",
+        )
+        if not path:
+            return
+        try:
+            pdf_service.export_inventory_pdf(
+                path, self._current_rows, summary_text=self.summary_label.cget("text")
+            )
+        except Exception as exc:
+            messagebox.showerror("Eroare export PDF", str(exc), parent=self)
+            return
+        self._offer_open(path, "Inventarul a fost salvat")
+
+    def _print_labels(self):
+        if not self._current_rows:
+            messagebox.showinfo("Inventar gol", "Nu există cărți pentru etichete.", parent=self)
+            return
+        path = filedialog.asksaveasfilename(
+            title="Etichete de raft (PDF)", defaultextension=".pdf",
+            filetypes=[("Fișiere PDF", "*.pdf")], initialfile="etichete.pdf",
+        )
+        if not path:
+            return
+        try:
+            pdf_service.generate_labels_pdf(path, self._current_rows)
+        except Exception as exc:
+            messagebox.showerror("Eroare generare etichete", str(exc), parent=self)
+            return
+        self._offer_open(path, f"{len(self._current_rows)} etichete au fost generate")
+
+    def _offer_open(self, path, message):
+        """Deschide PDF-ul generat în vizualizatorul implicit (dacă se poate);
+        altfel doar confirmă calea."""
+        opened = False
+        try:
+            os.startfile(path)  # doar pe Windows -- exact platforma țintă
+            opened = True
+        except Exception:
+            pass
+        if not opened:
+            messagebox.showinfo("Gata", f"{message} în:\n{path}", parent=self)

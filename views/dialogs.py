@@ -543,10 +543,14 @@ class LoanDialog(BaseDialog):
     def _refresh_books(self):
         search = self.book_search.get().strip() or None
         books = self.app.db.get_available_books(search)
-        self._book_map = {
-            f"{b['title']} — {b['author'] or 'necunoscut'} (ISBN {b['isbn'] or '-'})": b["id"]
-            for b in books
-        }
+        # Arată câte exemplare mai sunt libere doar când cartea are mai multe
+        # (la un singur exemplar, "1 liber" e evident și doar aglomerează).
+        def _label(b):
+            base = f"{b['title']} — {b['author'] or 'necunoscut'} (ISBN {b['isbn'] or '-'})"
+            if b.get("copies", 1) > 1:
+                base += f" · {b['available_copies']} libere"
+            return base
+        self._book_map = {_label(b): b["id"] for b in books}
         values = list(self._book_map.keys()) or ["Nicio carte disponibilă"]
         self.book_combo.configure(values=values)
         self.book_combo.set(values[0])
@@ -591,6 +595,109 @@ class LoanDialog(BaseDialog):
 
         self.app.db.add_loan(book_id, borrower_id, loan_date, due_date)
 
+        if self.on_saved:
+            self.on_saved()
+        self.destroy()
+
+
+class ReservationDialog(BaseDialog):
+    """Formular de rezervare: pune un cititor la coadă pentru o carte ale
+    cărei exemplare sunt toate împrumutate acum."""
+
+    def __init__(self, master, app, on_saved=None):
+        super().__init__(master, "Rezervă o carte", width=480, height=340)
+        self.app = app
+        self.on_saved = on_saved
+        self._book_map = {}
+        self._borrower_map = {}
+
+        pad = {"padx": 16, "pady": (10, 0)}
+
+        ctk.CTkLabel(self, text="Caută carte indisponibilă (toate exemplarele împrumutate)").grid(
+            row=0, column=0, sticky="w", **pad
+        )
+        self.book_search = ctk.CTkEntry(self, placeholder_text="titlu, autor sau ISBN...")
+        self.book_search.grid(row=1, column=0, sticky="ew", padx=16)
+        self.book_search.bind("<KeyRelease>", lambda e: self._refresh_books())
+        self.book_combo = ctk.CTkComboBox(self, values=[])
+        self.book_combo.grid(row=2, column=0, sticky="ew", padx=16, pady=(6, 0))
+
+        ctk.CTkLabel(self, text="Caută cititor").grid(row=3, column=0, sticky="w", **pad)
+        self.borrower_search = ctk.CTkEntry(self, placeholder_text="nume, email sau telefon...")
+        self.borrower_search.grid(row=4, column=0, sticky="ew", padx=16)
+        self.borrower_search.bind("<KeyRelease>", lambda e: self._refresh_borrowers())
+
+        borrower_row = ctk.CTkFrame(self, fg_color="transparent")
+        borrower_row.grid(row=5, column=0, sticky="ew", padx=16, pady=(6, 0))
+        borrower_row.grid_columnconfigure(0, weight=1)
+        self.borrower_combo = ctk.CTkComboBox(borrower_row, values=[])
+        self.borrower_combo.grid(row=0, column=0, sticky="ew")
+        ctk.CTkButton(borrower_row, text="+ Nou", width=70,
+                      command=self._add_new_borrower).grid(row=0, column=1, padx=(8, 0))
+
+        btn_row = ctk.CTkFrame(self, fg_color="transparent")
+        btn_row.grid(row=6, column=0, sticky="ew", padx=16, pady=20)
+        btn_row.grid_columnconfigure((0, 1), weight=1)
+        ctk.CTkButton(btn_row, text="Anulează", fg_color="gray40",
+                      command=self.destroy).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        ctk.CTkButton(btn_row, text="Confirmă rezervarea", command=self._save).grid(
+            row=0, column=1, sticky="ew", padx=(6, 0)
+        )
+
+        self._refresh_books()
+        self._refresh_borrowers()
+
+    def _refresh_books(self):
+        search = self.book_search.get().strip() or None
+        books = self.app.db.get_unavailable_books(search)
+        self._book_map = {
+            f"{b['title']} — {b['author'] or 'necunoscut'} (ISBN {b['isbn'] or '-'})": b["id"]
+            for b in books
+        }
+        values = list(self._book_map.keys()) or ["Nicio carte indisponibilă acum"]
+        self.book_combo.configure(values=values)
+        self.book_combo.set(values[0])
+
+    def _refresh_borrowers(self):
+        search = self.borrower_search.get().strip() or None
+        borrowers = self.app.db.get_all_borrowers(search)
+        self._borrower_map = {
+            f"{b['name']} ({b['email'] or b['phone'] or 'fără contact'})": b["id"]
+            for b in borrowers
+        }
+        values = list(self._borrower_map.keys()) or ["Niciun cititor înregistrat"]
+        self.borrower_combo.configure(values=values)
+        self.borrower_combo.set(values[0])
+
+    def _add_new_borrower(self):
+        BorrowerDialog(self, self.app, on_saved=self._on_borrower_added)
+
+    def _on_borrower_added(self, borrower_id):
+        self.borrower_search.delete(0, "end")
+        self._refresh_borrowers()
+        for label, bid in self._borrower_map.items():
+            if bid == borrower_id:
+                self.borrower_combo.set(label)
+                break
+
+    def _save(self):
+        book_id = self._book_map.get(self.book_combo.get())
+        borrower_id = self._borrower_map.get(self.borrower_combo.get())
+        if not book_id or not borrower_id:
+            messagebox.showwarning(
+                "Selecție invalidă",
+                "Selectează o carte indisponibilă și un cititor.", parent=self,
+            )
+            return
+        if self.app.db.has_active_reservation(book_id, borrower_id):
+            messagebox.showinfo(
+                "Rezervare existentă",
+                "Acest cititor are deja o rezervare activă pentru această carte.",
+                parent=self,
+            )
+            return
+
+        self.app.db.add_reservation(book_id, borrower_id)
         if self.on_saved:
             self.on_saved()
         self.destroy()

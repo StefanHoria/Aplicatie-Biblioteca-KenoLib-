@@ -120,7 +120,24 @@ class LoansPage(ctk.CTkFrame):
             parent=self,
         ):
             self.app.db.return_loan(loan["id"], today_iso())
+            self._notify_reservations(loan)
             self._on_loan_change()
+
+    def _notify_reservations(self, loan):
+        """Dacă tocmai returnata carte are rezervări active, anunță
+        bibliotecarul cine e următorul la rând (coada, în ordine)."""
+        reservations = self.app.db.get_reservations_for_book(loan["book_id"])
+        if not reservations:
+            return
+        next_person = reservations[0]["borrower_name"]
+        extra = f" (+{len(reservations) - 1} în coadă)" if len(reservations) > 1 else ""
+        messagebox.showinfo(
+            "Carte rezervată",
+            f"„{loan['book_title']}” are {len(reservations)} rezervare(ări) activă(e).\n"
+            f"Următorul la rând: {next_person}{extra}.\n\n"
+            "Poți marca rezervarea ca onorată din pagina Rezervări.",
+            parent=self,
+        )
 
     def _on_loan_change(self):
         self.refresh()
