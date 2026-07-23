@@ -12,12 +12,27 @@ from datetime import date, datetime, timedelta
 from tkinter import ttk
 
 import customtkinter as ctk
+from PIL import Image
 
 from config import (
     BRAND_ACCENT, BRAND_ACCENT_DARK, BRAND_ROW_SELECT_LIGHT, BRAND_ROW_SELECT_DARK,
+    ICON_PATH,
 )
 
 TREEVIEW_STYLE_NAME = "Custom.Treeview"
+
+_logo_cache = {}
+
+
+def get_logo_image(size=28):
+    """Logo-ul KenoLib (câinele din app_icon.ico) ca CTkImage, la dimensiunea
+    cerută -- folosit în antetul sidebar-ului, ecranul de încărcare și dialogul
+    de bun-venit, în locul emoji-ului 📖, ca să reflecte iconița reală a
+    aplicației. Rezultatul e cache-uit (aceeași imagine reutilizată)."""
+    if size not in _logo_cache:
+        img = Image.open(ICON_PATH).convert("RGBA")
+        _logo_cache[size] = ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
+    return _logo_cache[size]
 
 
 def is_dark_mode():

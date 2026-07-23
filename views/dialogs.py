@@ -18,9 +18,9 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 import api_service
-from config import UNCONFIRMED_CATEGORY, suggest_czu, COLOR_DANGER_TEXT
+from config import UNCONFIRMED_CATEGORY, suggest_czu, COLOR_DANGER_TEXT, BRAND_ACCENT, BRAND_TITLE_FONT
 from settings_service import get_default_loan_days, get_profile, set_profile
-from utils import today_iso, due_date_iso, is_valid_isbn, normalize_isbn
+from utils import today_iso, due_date_iso, is_valid_isbn, normalize_isbn, get_logo_image
 
 
 class BaseDialog(ctk.CTkToplevel):
@@ -49,9 +49,10 @@ class ProfileDialog(BaseDialog):
 
         row = 0
         if welcome:
-            ctk.CTkLabel(self, text="📖 Bun venit în KenoLib!", font=("", 20, "bold")).grid(
-                row=row, column=0, sticky="w", padx=20, pady=(20, 2)
-            )
+            ctk.CTkLabel(
+                self, text="  Bun venit în KenoLib!", image=get_logo_image(42),
+                compound="left", font=(BRAND_TITLE_FONT, 21), text_color=BRAND_ACCENT,
+            ).grid(row=row, column=0, sticky="w", padx=20, pady=(20, 2))
             row += 1
             ctk.CTkLabel(
                 self,

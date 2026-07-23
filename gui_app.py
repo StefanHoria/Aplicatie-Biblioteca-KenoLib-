@@ -17,8 +17,9 @@ import customtkinter as ctk
 from config import (
     APP_TITLE, APP_GEOMETRY, APPEARANCE_MODE, COLOR_THEME, SCANNER_POLL_INTERVAL_MS,
     COLOR_SUCCESS, ICON_PATH,
-    BRAND_ACCENT, BRAND_ACCENT_DARK, BRAND_ACCENT_DARKER,
+    BRAND_ACCENT, BRAND_ACCENT_DARK, BRAND_ACCENT_DARKER, BRAND_TITLE_FONT,
 )
+from utils import get_logo_image
 from database import Database
 from ml_classifier import BookClassifier
 from scanner_service import ScannerService
@@ -183,7 +184,10 @@ class App(ctk.CTk):
     def _show_loading_screen(self):
         frame = ctk.CTkFrame(self, fg_color="transparent")
         frame.place(relx=0.5, rely=0.5, anchor="center")
-        ctk.CTkLabel(frame, text="📖 KenoLib", font=("", 26, "bold")).pack(pady=(0, 18))
+        ctk.CTkLabel(
+            frame, text=" KenoLib", image=get_logo_image(48), compound="left",
+            font=(BRAND_TITLE_FONT, 34), text_color=BRAND_ACCENT,
+        ).pack(pady=(0, 18))
         progress = ctk.CTkProgressBar(frame, width=220, mode="indeterminate")
         progress.pack()
         progress.start()
@@ -231,9 +235,10 @@ class App(ctk.CTk):
         header = ctk.CTkFrame(sidebar, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 8))
         header.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(header, text="📖 KenoLib", font=("", 20, "bold"), anchor="w").grid(
-            row=0, column=0, sticky="w"
-        )
+        ctk.CTkLabel(
+            header, text=" KenoLib", image=get_logo_image(30), compound="left",
+            font=(BRAND_TITLE_FONT, 23), text_color=BRAND_ACCENT, anchor="w",
+        ).grid(row=0, column=0, sticky="w")
         # wraplength mare = fără wrap; textul e deja scurtat pe câte o linie în
         # _refresh_profile_label, ca înălțimea antetului să rămână previzibilă
         # (contează la înălțimea minimă a ferestrei, unde spațiul e strâns).
