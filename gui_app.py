@@ -19,7 +19,7 @@ from config import (
     COLOR_SUCCESS, ICON_PATH,
     BRAND_ACCENT, BRAND_ACCENT_DARK, BRAND_ACCENT_DARKER, BRAND_TITLE_FONT,
 )
-from utils import get_logo_image
+from utils import make_logo_icon
 from database import Database
 from ml_classifier import BookClassifier
 from scanner_service import ScannerService
@@ -184,10 +184,12 @@ class App(ctk.CTk):
     def _show_loading_screen(self):
         frame = ctk.CTkFrame(self, fg_color="transparent")
         frame.place(relx=0.5, rely=0.5, anchor="center")
+        row = ctk.CTkFrame(frame, fg_color="transparent")
+        row.pack(pady=(0, 18))
+        make_logo_icon(row, 44).grid(row=0, column=0, padx=(0, 10))
         ctk.CTkLabel(
-            frame, text=" KenoLib", image=get_logo_image(48), compound="left",
-            font=(BRAND_TITLE_FONT, 34), text_color=BRAND_ACCENT,
-        ).pack(pady=(0, 18))
+            row, text="KenoLib", font=(BRAND_TITLE_FONT, 32), text_color=BRAND_ACCENT,
+        ).grid(row=0, column=1)
         progress = ctk.CTkProgressBar(frame, width=220, mode="indeterminate")
         progress.pack()
         progress.start()
@@ -231,14 +233,16 @@ class App(ctk.CTk):
         sidebar.grid(row=0, column=0, sticky="nsw")
         sidebar.grid_rowconfigure(len(NAV_ITEMS) + 3, weight=1)
 
-        # Antet: logo + profilul bibliotecii (nume/școală) dedesubt.
+        # Antet: iconiță-contur desenată + wordmark, cu profilul dedesubt.
         header = ctk.CTkFrame(sidebar, fg_color="transparent")
         header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 8))
-        header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(1, weight=1)
+        self.logo_canvas = make_logo_icon(header, 30)
+        self.logo_canvas.grid(row=0, column=0, sticky="w", padx=(0, 8))
         ctk.CTkLabel(
-            header, text=" KenoLib", image=get_logo_image(30), compound="left",
-            font=(BRAND_TITLE_FONT, 23), text_color=BRAND_ACCENT, anchor="w",
-        ).grid(row=0, column=0, sticky="w")
+            header, text="KenoLib", font=(BRAND_TITLE_FONT, 21),
+            text_color=BRAND_ACCENT, anchor="w",
+        ).grid(row=0, column=1, sticky="w")
         # wraplength mare = fără wrap; textul e deja scurtat pe câte o linie în
         # _refresh_profile_label, ca înălțimea antetului să rămână previzibilă
         # (contează la înălțimea minimă a ferestrei, unde spațiul e strâns).
@@ -246,7 +250,7 @@ class App(ctk.CTk):
             header, text="", font=("", 11), text_color="gray",
             anchor="w", justify="left", wraplength=600,
         )
-        self.profile_label.grid(row=1, column=0, sticky="w", pady=(1, 0))
+        self.profile_label.grid(row=1, column=0, columnspan=2, sticky="w", pady=(1, 0))
 
         for i, (key, label, _) in enumerate(NAV_ITEMS, start=1):
             btn = ctk.CTkButton(
@@ -315,6 +319,10 @@ class App(ctk.CTk):
 
     def _change_appearance(self, mode):
         ctk.set_appearance_mode(mode)
+        # Canvas-ul iconiței nu urmărește automat tema (nu e widget CTk) --
+        # îi reîmprospătăm fundalul ca să se potrivească noul mod.
+        if hasattr(self, "logo_canvas"):
+            self.after(50, self.logo_canvas.set_bg)
         for page in self.pages.values():
             if hasattr(page, "refresh"):
                 page.refresh()

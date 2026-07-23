@@ -91,10 +91,10 @@ BRAND_ACCENT_DARKER = "#245a93"    # hover în mod întunecat
 BRAND_ROW_SELECT_LIGHT = "#cfe3f9"  # fundal rând selectat în tabel (mod luminos)
 BRAND_ROW_SELECT_DARK = "#1e4d78"   # fundal rând selectat în tabel (mod întunecat)
 
-# Font distinctiv pentru titlul „KenoLib” (logo-ul textual din sidebar / ecran
-# de încărcare / bun-venit) -- Bahnschrift e un font geometric modern livrat cu
-# Windows 10+. Dacă lipsește, Tkinter cade elegant pe fontul implicit.
-BRAND_TITLE_FONT = "Bahnschrift SemiBold"
+# Font distinctiv, „funky”, pentru titlul textual „KenoLib” (sidebar / ecran de
+# încărcare / bun-venit) -- Cooper Black e un display font gros, retro-prietenos,
+# livrat cu Windows. Dacă lipsește, Tkinter cade elegant pe fontul implicit.
+BRAND_TITLE_FONT = "Cooper Black"
 
 # --- Culori de stare (folosite consecvent în toate paginile) ---
 # Fiecare stare are, unde e cazul, două variante: "TEXT" (mai deschisă,

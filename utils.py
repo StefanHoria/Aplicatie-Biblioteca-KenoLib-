@@ -8,31 +8,67 @@ Funcții utilitare comune, folosite din mai multe pagini ale interfeței:
 """
 
 import re
+import tkinter
 from datetime import date, datetime, timedelta
 from tkinter import ttk
 
 import customtkinter as ctk
-from PIL import Image
 
 from config import (
     BRAND_ACCENT, BRAND_ACCENT_DARK, BRAND_ROW_SELECT_LIGHT, BRAND_ROW_SELECT_DARK,
-    ICON_PATH,
 )
 
 TREEVIEW_STYLE_NAME = "Custom.Treeview"
 
-_logo_cache = {}
+
+def _resolved_bg(widget):
+    """Culoarea reală (hex, pentru modul curent) a fundalului pe care stă un
+    widget -- urcă la părinte cât timp fundalul e „transparent”. Necesară
+    fiindcă tkinter.Canvas nu suportă transparență, deci trebuie să-i dăm
+    exact culoarea din spate ca iconița desenată să nu aibă un chenar vizibil."""
+    try:
+        color = widget.cget("fg_color")
+    except Exception:
+        color = None
+    if color in (None, "transparent"):
+        master = getattr(widget, "master", None)
+        if master is not None:
+            return _resolved_bg(master)
+        return "#2b2b2b"
+    if hasattr(widget, "_apply_appearance_mode"):
+        return widget._apply_appearance_mode(color)
+    return color
 
 
-def get_logo_image(size=28):
-    """Logo-ul KenoLib (câinele din app_icon.ico) ca CTkImage, la dimensiunea
-    cerută -- folosit în antetul sidebar-ului, ecranul de încărcare și dialogul
-    de bun-venit, în locul emoji-ului 📖, ca să reflecte iconița reală a
-    aplicației. Rezultatul e cache-uit (aceeași imagine reutilizată)."""
-    if size not in _logo_cache:
-        img = Image.open(ICON_PATH).convert("RGBA")
-        _logo_cache[size] = ctk.CTkImage(light_image=img, dark_image=img, size=(size, size))
-    return _logo_cache[size]
+def make_logo_icon(parent, size=30, color=None):
+    """Iconița KenoLib desenată vectorial (o carte deschisă, doar CONTUR) pe un
+    tkinter.Canvas -- nu o imagine. Se potrivește cu accentul de brand și e
+    crisp la orice dimensiune. Returnează Canvas-ul (are `.set_bg()` pentru a
+    reîmprospăta fundalul la schimbarea temei Dark/Light)."""
+    color = color or BRAND_ACCENT
+    canvas = tkinter.Canvas(
+        parent, width=size, height=size, highlightthickness=0, bd=0,
+        bg=_resolved_bg(parent),
+    )
+    k = size / 32.0
+
+    def P(*pts):
+        return [round(v * k) for v in pts]
+
+    stroke = max(2, round(2.3 * k))
+    thin = max(1, round(1.1 * k))
+    # cele două pagini (contur închis) împart cotorul din mijloc
+    canvas.create_polygon(*P(16, 8, 5, 10, 5, 25, 16, 27),
+                          outline=color, fill="", width=stroke, joinstyle="round")
+    canvas.create_polygon(*P(16, 8, 27, 10, 27, 25, 16, 27),
+                          outline=color, fill="", width=stroke, joinstyle="round")
+    # linii scurte care sugerează textul de pe pagini
+    for yy in (14, 18, 22):
+        canvas.create_line(*P(8, yy, 13, yy - 0.5), fill=color, width=thin)
+        canvas.create_line(*P(19, yy - 0.5, 24, yy), fill=color, width=thin)
+
+    canvas.set_bg = lambda: canvas.configure(bg=_resolved_bg(parent))
+    return canvas
 
 
 def is_dark_mode():
