@@ -134,6 +134,31 @@ def maybe_run_auto_backup(db):
 
 
 # ------------------------------------------------------------------
+# Profil bibliotecă (nume + școală) -- cerut la prima pornire, editabil în Setări
+# ------------------------------------------------------------------
+def get_profile():
+    settings = load_settings()
+    return {
+        "name": settings.get("profile_name", ""),
+        "school": settings.get("profile_school", ""),
+    }
+
+
+def set_profile(name, school):
+    settings = load_settings()
+    settings["profile_name"] = (name or "").strip()
+    settings["profile_school"] = (school or "").strip()
+    save_settings(settings)
+
+
+def is_profile_complete():
+    """True dacă profilul a fost completat (ambele câmpuri). Fals la prima
+    pornire -- declanșează dialogul de configurare."""
+    profile = get_profile()
+    return bool(profile["name"] and profile["school"])
+
+
+# ------------------------------------------------------------------
 # Împrumuturi
 # ------------------------------------------------------------------
 def get_default_loan_days():

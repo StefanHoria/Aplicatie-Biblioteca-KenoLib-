@@ -40,6 +40,8 @@ from settings_service import (
     set_auto_backup_retention,
     get_default_loan_days,
     set_default_loan_days,
+    get_profile,
+    set_profile,
 )
 
 REQUIRED_TABLES = {"books", "categories", "borrowers", "loans"}
@@ -72,8 +74,42 @@ class SettingsPage(ctk.CTkFrame):
             row=0, column=0, sticky="w", padx=24, pady=(20, 10)
         )
 
+        # --- Profil bibliotecă ---
+        profile = get_profile()
+        profile_frame = ctk.CTkFrame(self, corner_radius=12)
+        profile_frame.grid(row=1, column=0, sticky="new", padx=24, pady=(0, 24))
+        profile_frame.grid_columnconfigure(0, weight=1)
+
+        ctk.CTkLabel(
+            profile_frame, text="Profil bibliotecă", font=("", 16, "bold")
+        ).grid(row=0, column=0, sticky="w", padx=16, pady=(14, 2))
+        ctk.CTkLabel(
+            profile_frame,
+            text="Numele bibliotecii și școala de care aparține. Apar în bara laterală "
+                 "și în titlul ferestrei.",
+            text_color="gray", justify="left", wraplength=560,
+        ).grid(row=1, column=0, sticky="w", padx=16, pady=(0, 10))
+
+        ctk.CTkLabel(profile_frame, text="Nume bibliotecă / bibliotecar").grid(
+            row=2, column=0, sticky="w", padx=16
+        )
+        self.profile_name_entry = ctk.CTkEntry(profile_frame, width=380)
+        self.profile_name_entry.insert(0, profile["name"])
+        self.profile_name_entry.grid(row=3, column=0, sticky="w", padx=16, pady=(2, 8))
+
+        ctk.CTkLabel(profile_frame, text="Școala de care aparține").grid(
+            row=4, column=0, sticky="w", padx=16
+        )
+        self.profile_school_entry = ctk.CTkEntry(profile_frame, width=380)
+        self.profile_school_entry.insert(0, profile["school"])
+        self.profile_school_entry.grid(row=5, column=0, sticky="w", padx=16, pady=(2, 10))
+
+        ctk.CTkButton(
+            profile_frame, text="Salvează profilul", command=self._save_profile
+        ).grid(row=6, column=0, sticky="w", padx=16, pady=(0, 16))
+
         backup_frame = ctk.CTkFrame(self, corner_radius=12)
-        backup_frame.grid(row=1, column=0, sticky="new", padx=24, pady=(0, 24))
+        backup_frame.grid(row=2, column=0, sticky="new", padx=24, pady=(0, 24))
         backup_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -142,7 +178,7 @@ class SettingsPage(ctk.CTkFrame):
         ).grid(row=10, column=0, sticky="w", padx=16, pady=(0, 16))
 
         loans_frame = ctk.CTkFrame(self, corner_radius=12)
-        loans_frame.grid(row=2, column=0, sticky="new", padx=24, pady=(0, 24))
+        loans_frame.grid(row=3, column=0, sticky="new", padx=24, pady=(0, 24))
         loans_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -203,6 +239,21 @@ class SettingsPage(ctk.CTkFrame):
         messagebox.showinfo(
             "Salvat", f"Se vor păstra ultimele {raw} backup-uri automate.", parent=self
         )
+
+    def _save_profile(self):
+        name = self.profile_name_entry.get().strip()
+        school = self.profile_school_entry.get().strip()
+        if not name or not school:
+            messagebox.showwarning(
+                "Date incomplete",
+                "Completează atât numele bibliotecii, cât și școala.", parent=self,
+            )
+            return
+        set_profile(name, school)
+        # actualizează imediat antetul din sidebar + titlul ferestrei
+        if hasattr(self.app, "_refresh_profile_label"):
+            self.app._refresh_profile_label()
+        messagebox.showinfo("Salvat", "Profilul bibliotecii a fost salvat.", parent=self)
 
     def _save_default_loan_days(self):
         raw = self.loan_days_entry.get().strip()

@@ -19,7 +19,7 @@ import customtkinter as ctk
 
 import api_service
 from config import UNCONFIRMED_CATEGORY, suggest_czu, COLOR_DANGER_TEXT
-from settings_service import get_default_loan_days
+from settings_service import get_default_loan_days, get_profile, set_profile
 from utils import today_iso, due_date_iso, is_valid_isbn, normalize_isbn
 
 
@@ -34,6 +34,73 @@ class BaseDialog(ctk.CTkToplevel):
         self.transient(master)
         self.after(50, self.grab_set)
         self.grid_columnconfigure(0, weight=1)
+
+
+class ProfileDialog(BaseDialog):
+    """Configurarea profilului bibliotecii la prima pornire: numele și școala
+    de care aparține. Reutilizabil ca fereastră de bun-venit (welcome=True)."""
+
+    def __init__(self, master, app, on_saved=None, welcome=True):
+        title = "Bun venit în KenoLib" if welcome else "Editează profilul bibliotecii"
+        super().__init__(master, title, width=480, height=400)
+        self.app = app
+        self.on_saved = on_saved
+        profile = get_profile()
+
+        row = 0
+        if welcome:
+            ctk.CTkLabel(self, text="📖 Bun venit în KenoLib!", font=("", 20, "bold")).grid(
+                row=row, column=0, sticky="w", padx=20, pady=(20, 2)
+            )
+            row += 1
+            ctk.CTkLabel(
+                self,
+                text="Completează datele bibliotecii ca să începi.\n"
+                     "Le poți schimba oricând din pagina Setări.",
+                text_color="gray", justify="left",
+            ).grid(row=row, column=0, sticky="w", padx=20, pady=(0, 14))
+            row += 1
+
+        ctk.CTkLabel(self, text="Nume bibliotecă / bibliotecar *").grid(
+            row=row, column=0, sticky="w", padx=20, pady=(6, 0)
+        )
+        row += 1
+        self.name_entry = ctk.CTkEntry(self, placeholder_text="ex: Biblioteca „Ion Creangă”")
+        self.name_entry.insert(0, profile["name"])
+        self.name_entry.grid(row=row, column=0, sticky="ew", padx=20)
+        row += 1
+
+        ctk.CTkLabel(self, text="Școala de care aparține biblioteca *").grid(
+            row=row, column=0, sticky="w", padx=20, pady=(12, 0)
+        )
+        row += 1
+        self.school_entry = ctk.CTkEntry(
+            self, placeholder_text="ex: Școala Gimnazială Nr. 5, Cluj-Napoca"
+        )
+        self.school_entry.insert(0, profile["school"])
+        self.school_entry.grid(row=row, column=0, sticky="ew", padx=20)
+        row += 1
+
+        ctk.CTkButton(
+            self, text="Salvează și continuă" if welcome else "Salvează",
+            command=self._save,
+        ).grid(row=row, column=0, sticky="ew", padx=20, pady=(22, 16))
+
+        self.name_entry.focus()
+
+    def _save(self):
+        name = self.name_entry.get().strip()
+        school = self.school_entry.get().strip()
+        if not name or not school:
+            messagebox.showwarning(
+                "Date incomplete",
+                "Completează atât numele bibliotecii, cât și școala.", parent=self,
+            )
+            return
+        set_profile(name, school)
+        if self.on_saved:
+            self.on_saved()
+        self.destroy()
 
 
 class BookDialog(BaseDialog):

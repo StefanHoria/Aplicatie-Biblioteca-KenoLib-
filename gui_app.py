@@ -22,7 +22,7 @@ from config import (
 from database import Database
 from ml_classifier import BookClassifier
 from scanner_service import ScannerService
-from settings_service import maybe_run_auto_backup
+from settings_service import maybe_run_auto_backup, get_profile, is_profile_complete
 
 from views.dashboard import DashboardPage
 from views.catalog import CatalogPage
@@ -157,6 +157,28 @@ class App(ctk.CTk):
 
         self.protocol("WM_DELETE_WINDOW", self._on_close)
         self.after(SCANNER_POLL_INTERVAL_MS, self._poll_scanner_queue)
+        # La prima pornire (profil necompletat) cerem numele bibliotecii și
+        # școala -- după ce fereastra e complet randată, ca dialogul modal să
+        # apară peste o interfață gata, nu peste una goală.
+        self.after(400, self._maybe_prompt_profile)
+
+    def _maybe_prompt_profile(self):
+        from views.dialogs import ProfileDialog
+        if not is_profile_complete():
+            ProfileDialog(self, self, on_saved=self._refresh_profile_label, welcome=True)
+
+    def _refresh_profile_label(self):
+        """Actualizează eticheta din sidebar și titlul ferestrei cu profilul
+        curent (apelat la pornire și după orice modificare din Setări/dialog).
+        Fiecare câmp e scurtat pe o singură linie ca antetul să rămână compact;
+        valorile complete rămân în titlul ferestrei și în pagina Setări."""
+        def _short(text, limit=26):
+            return text if len(text) <= limit else text[:limit - 1] + "…"
+
+        profile = get_profile()
+        lines = [_short(p) for p in (profile["name"], profile["school"]) if p]
+        self.profile_label.configure(text="\n".join(lines))
+        self.title(f"{APP_TITLE} — {profile['name']}" if profile["name"] else APP_TITLE)
 
     def _show_loading_screen(self):
         frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -205,9 +227,21 @@ class App(ctk.CTk):
         sidebar.grid(row=0, column=0, sticky="nsw")
         sidebar.grid_rowconfigure(len(NAV_ITEMS) + 3, weight=1)
 
-        ctk.CTkLabel(
-            sidebar, text="📖 KenoLib", font=("", 20, "bold")
-        ).grid(row=0, column=0, padx=20, pady=(18, 12), sticky="w")
+        # Antet: logo + profilul bibliotecii (nume/școală) dedesubt.
+        header = ctk.CTkFrame(sidebar, fg_color="transparent")
+        header.grid(row=0, column=0, sticky="ew", padx=20, pady=(16, 8))
+        header.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(header, text="📖 KenoLib", font=("", 20, "bold"), anchor="w").grid(
+            row=0, column=0, sticky="w"
+        )
+        # wraplength mare = fără wrap; textul e deja scurtat pe câte o linie în
+        # _refresh_profile_label, ca înălțimea antetului să rămână previzibilă
+        # (contează la înălțimea minimă a ferestrei, unde spațiul e strâns).
+        self.profile_label = ctk.CTkLabel(
+            header, text="", font=("", 11), text_color="gray",
+            anchor="w", justify="left", wraplength=600,
+        )
+        self.profile_label.grid(row=1, column=0, sticky="w", pady=(1, 0))
 
         for i, (key, label, _) in enumerate(NAV_ITEMS, start=1):
             btn = ctk.CTkButton(
@@ -216,7 +250,7 @@ class App(ctk.CTk):
                 height=NAV_BUTTON_HEIGHT, font=("", 14),
                 command=lambda k=key: self.show_page(k),
             )
-            btn.grid(row=i, column=0, sticky="ew", padx=12, pady=4)
+            btn.grid(row=i, column=0, sticky="ew", padx=12, pady=3)
             self.nav_buttons[key] = btn
 
         # Bară de accent care alunecă spre butonul activ la navigare
@@ -271,6 +305,8 @@ class App(ctk.CTk):
         )
         self.appearance_menu.set(APPEARANCE_MODE)
         self.appearance_menu.grid(row=0, column=1, sticky="e", padx=(8, 0))
+
+        self._refresh_profile_label()  # populează numele/școala în antet + titlu
 
     def _change_appearance(self, mode):
         ctk.set_appearance_mode(mode)
