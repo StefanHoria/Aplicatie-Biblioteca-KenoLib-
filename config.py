@@ -8,20 +8,37 @@ parametri serial) astfel încât să poată fi modificate dintr-un singur loc.
 import os
 import sys
 
-# Când aplicația rulează ca executabil PyInstaller (`sys.frozen`), fișierele
-# de date (bază de date, model ML) trebuie scrise lângă executabil, nu în
-# folderul temporar de extracție (`sys._MEIPASS`), care este șters/recreat
-# la fiecare pornire — altfel datele s-ar pierde de la o rulare la alta.
+# Când aplicația rulează ca executabil PyInstaller (`sys.frozen`), datele
+# scrise de utilizator (bază de date, setări, model ML) NU trebuie ținute
+# lângă executabil: dacă aplicația e instalată cu installerul (ex. în
+# Program Files), acel folder este doar-citire pentru un utilizator obișnuit,
+# iar scrierile ar eșua. De aceea, în modul instalat folosim o locație
+# per-utilizator, garantat inscriptibilă, care SUPRAVIEȚUIEȘTE
+# dezinstalării/actualizării aplicației: %LOCALAPPDATA%\KenoLib (astfel,
+# reinstalarea sau o versiune nouă nu șterg catalogul bibliotecii).
+#
+# Nota: `sys._MEIPASS` (folderul temporar de extracție) este șters/recreat la
+# fiecare pornire — nu e potrivit pentru date persistente; e folosit doar
+# pentru resurse doar-citire împachetate (iconiță, model ML de pornire).
 if getattr(sys, "frozen", False):
-    BASE_DIR = os.path.dirname(sys.executable)
+    _local = os.environ.get("LOCALAPPDATA") or os.path.expanduser("~")
+    DATA_DIR = os.path.join(_local, "KenoLib")
+    os.makedirs(DATA_DIR, exist_ok=True)
+    APP_DIR = os.path.dirname(sys.executable)      # folderul programului (doar-citire)
 else:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    # În dezvoltare (rulare din surse), totul rămâne în folderul proiectului,
+    # ca până acum — comod pentru teste și depanare.
+    DATA_DIR = os.path.dirname(os.path.abspath(__file__))
+    APP_DIR = DATA_DIR
+
+# Nume păstrat pentru compatibilitate cu restul codului (referă folderul de date).
+BASE_DIR = DATA_DIR
 
 # --- Bază de date ---
-DB_PATH = os.path.join(BASE_DIR, "library.db")
+DB_PATH = os.path.join(DATA_DIR, "library.db")
 
-# --- Setări persistente (ex. locația folderului de backup) ---
-SETTINGS_PATH = os.path.join(BASE_DIR, "settings.json")
+# --- Setări persistente (profil, locația folderului de backup, etc.) ---
+SETTINGS_PATH = os.path.join(DATA_DIR, "settings.json")
 
 # --- Iconiță aplicație ---
 # Spre deosebire de BASE_DIR (folosit pentru date scrise de utilizator,
@@ -35,7 +52,44 @@ else:
     ICON_PATH = os.path.join(BASE_DIR, "app_icon.ico")
 
 # --- Machine Learning ---
-ML_MODEL_PATH = os.path.join(BASE_DIR, "ml_model.joblib")
+# Modelul antrenabil/rescriabil stă în folderul de date (inscriptibil).
+ML_MODEL_PATH = os.path.join(DATA_DIR, "ml_model.joblib")
+# Model pre-antrenat, împachetat în executabil (doar-citire). La prima
+# pornire e copiat în ML_MODEL_PATH (vezi bootstrap_data_dir), ca aplicația
+# să pornească deja cu clasificare funcțională, apoi să-l poată re-antrena.
+if getattr(sys, "frozen", False):
+    ML_MODEL_SEED = os.path.join(sys._MEIPASS, "ml_model.joblib")
+else:
+    ML_MODEL_SEED = None
+
+
+def bootstrap_data_dir():
+    """Pregătește folderul de date la pornirea versiunii INSTALATE:
+    1) copiază modelul ML pre-antrenat împachetat, dacă lipsește din DATA_DIR;
+    2) migrează o eventuală bază de date/setări dintr-o rulare PORTABILĂ
+       anterioară (fișiere aflate lângă executabil), ca datele existente ale
+       utilizatorului să nu pară pierdute după trecerea la versiunea instalată.
+    Nu are niciun efect când aplicația rulează din surse (dezvoltare)."""
+    if not getattr(sys, "frozen", False):
+        return
+    import shutil
+
+    legacy_dir = os.path.dirname(sys.executable)
+    if os.path.abspath(legacy_dir) != os.path.abspath(DATA_DIR):
+        for name in ("library.db", "settings.json"):
+            src = os.path.join(legacy_dir, name)
+            dst = os.path.join(DATA_DIR, name)
+            if os.path.exists(src) and not os.path.exists(dst):
+                try:
+                    shutil.copy2(src, dst)
+                except OSError:
+                    pass
+
+    if ML_MODEL_SEED and os.path.exists(ML_MODEL_SEED) and not os.path.exists(ML_MODEL_PATH):
+        try:
+            shutil.copy2(ML_MODEL_SEED, ML_MODEL_PATH)
+        except OSError:
+            pass
 # Pragul de încredere sub care categoria devine "De Confirmat" se calculează
 # relativ la numărul de categorii, nu ca o valoare fixă: cu N categorii,
 # șansa aleatoare este 1/N, iar probabilitatea maximă tinde să scadă pe

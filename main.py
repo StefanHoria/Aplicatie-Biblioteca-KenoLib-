@@ -14,6 +14,14 @@ sunt inserate. Restul aplicației este construit modular:
     - gui_app.py + views/    interfața grafică (View/Controller)
 """
 
+from config import bootstrap_data_dir
+
+# La versiunea instalată, pregătește folderul de date per-utilizator
+# (%LOCALAPPDATA%\KenoLib): copiază modelul ML împachetat și migrează
+# eventuale date dintr-o rulare portabilă anterioară. Trebuie apelată
+# ÎNAINTE de a construi App() (care deschide baza de date).
+bootstrap_data_dir()
+
 from gui_app import App
 
 if __name__ == "__main__":

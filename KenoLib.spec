@@ -4,6 +4,10 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 datas = []
 datas += collect_data_files('customtkinter')
 datas += [('app_icon.ico', '.')]
+# Model ML pre-antrenat, împachetat ca „seed” doar-citire. La prima pornire
+# e copiat în folderul de date per-utilizator (vezi config.bootstrap_data_dir),
+# ca aplicația instalată să aibă clasificare funcțională din start.
+datas += [('ml_model.joblib', '.')]
 
 # reportlab.graphics.barcode/__init__ importă dinamic TOATE backend-urile de
 # cod de bare (code39, code93, code128, ...) prin _reset(), dar PyInstaller
