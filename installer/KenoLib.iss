@@ -41,6 +41,10 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 DisableWelcomePage=no
+; Imagini de brand in expert (generate cu generate_installer_images.py).
+; Fiecare are doua marimi -- Inno o alege pe cea potrivita rezolutiei ecranului.
+WizardImageFile=assets\wizard-large.bmp,assets\wizard-large-2x.bmp
+WizardSmallImageFile=assets\wizard-small.bmp,assets\wizard-small-2x.bmp
 ; Datele utilizatorului (catalogul) stau in %LOCALAPPDATA%\KenoLib si NU sunt
 ; atinse la dezinstalare -- avertizam ca dezinstalarea nu sterge biblioteca.
 
