@@ -12,12 +12,6 @@ echo Construire executabil (PyInstaller)...
 python -m PyInstaller --noconfirm KenoLib.spec
 if errorlevel 1 goto :error
 
-if exist ml_model.joblib (
-    echo.
-    echo Copiere model ML pre-antrenat langa executabil...
-    copy /Y ml_model.joblib dist\KenoLib\ml_model.joblib >nul
-)
-
 echo.
 echo ============================================================
 echo  Gata! Aplicatia executabila se afla in:
@@ -26,6 +20,10 @@ echo.
 echo  Pentru a o folosi pe alt calculator, copiaza intregul folder
 echo    dist\KenoLib
 echo  (nu doar fisierul .exe) si ruleaza KenoLib.exe din el.
+echo.
+echo  SAU, pentru un installer profesional (un singur fisier .exe,
+echo  cu scurtaturi si dezinstalare), ruleaza in schimb:
+echo    make_installer.bat
 echo ============================================================
 pause
 exit /b 0

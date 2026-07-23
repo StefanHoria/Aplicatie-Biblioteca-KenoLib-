@@ -23,11 +23,33 @@ python main.py
 La prima rulare se creează automat `library.db` (SQLite) cu schema și
 categoriile implicite.
 
-## Executabil standalone (.exe) — fără Python instalat
+## Distribuire pe alte calculatoare (fără Python instalat)
 
-Pentru a rula aplicația pe orice calculator Windows fără să fie nevoie
-de Python sau de librăriile din `requirements.txt`, se poate construi
-un executabil de sine stătător cu PyInstaller:
+Aplicația poate fi dusă pe orice calculator Windows fără să fie nevoie
+de Python sau de librăriile din `requirements.txt`. Există două variante;
+ambele se construiesc **o singură dată**, pe calculatorul de dezvoltare.
+
+### Varianta recomandată: installer într-un singur fișier
+
+```bash
+make_installer.bat
+```
+
+Scriptul face totul automat:
+
+1. construiește executabilul cu PyInstaller (Python + toate librăriile incluse);
+2. se asigură că **Inno Setup** e prezent — îl descarcă și instalează automat
+   de la sursa oficială (release GitHub semnat de jrsoftware) dacă lipsește;
+   necesar doar pe calculatorul pe care *construiești* installerul;
+3. compilează rezultatul în `installer\Output\KenoLib-Setup.exe`.
+
+`KenoLib-Setup.exe` este **un singur fișier** (~55 MB) pe care îl copiezi pe
+orice laptop Windows și îl rulezi. Instalează aplicația cu un expert în limba
+română, creează scurtături în meniul Start și pe desktop și adaugă o intrare de
+dezinstalare — **fără Python și fără nimic altceva instalat manual.** Instalarea
+este per-utilizator (nu cere drepturi de administrator).
+
+### Varianta portabilă: folderul `dist`
 
 ```bash
 build_exe.bat
@@ -36,16 +58,30 @@ build_exe.bat
 (sau manual: `pip install -r requirements-build.txt` apoi
 `python -m PyInstaller --noconfirm KenoLib.spec`)
 
-Rezultatul apare în `dist\KenoLib\` — un folder ce conține
-`KenoLib.exe` și dependințele sale (`_internal\`). **Pentru
-distribuire, copiază întregul folder `dist\KenoLib`** (nu doar
-fișierul `.exe`) pe calculatorul țintă și rulează `KenoLib.exe`
-direct — nu necesită instalare. La prima pornire, `library.db` și
-`ml_model.joblib` se creează automat lângă executabil, în același
-folder, așa că folderul rămâne complet portabil (poate fi mutat pe un
-stick USB sau alt calculator, păstrându-și datele).
+Rezultatul apare în `dist\KenoLib\` — un folder cu `KenoLib.exe` și
+dependințele sale (`_internal\`). Copiază **întregul folder** (nu doar
+`.exe`-ul) pe calculatorul țintă și rulează `KenoLib.exe` direct, fără
+instalare.
 
-Folderul este relativ mare (~190 MB) din cauza librăriilor
+### Unde sunt salvate datele
+
+Indiferent de variantă, la rularea executabilului datele utilizatorului —
+baza de date `library.db`, `settings.json` și modelul ML — se salvează în
+folderul per-utilizator:
+
+```
+%LOCALAPPDATA%\KenoLib
+```
+
+Acesta este garantat inscriptibil (spre deosebire de `Program Files`, care e
+doar-citire pentru un utilizator obișnuit), așa că aplicația funcționează la
+fel indiferent unde e instalată. În plus, **catalogul bibliotecii
+supraviețuiește** reinstalării, actualizării sau dezinstalării — dezinstalarea
+NU șterge datele. Modelul ML pre-antrenat, împachetat în executabil, este
+copiat aici automat la prima pornire (iar dacă existau date dintr-o rulare
+portabilă anterioară lângă `.exe`, sunt migrate automat).
+
+Folderul aplicației este relativ mare (~190 MB) din cauza librăriilor
 scikit-learn/scipy/numpy incluse pentru clasificarea ML — este normal.
 
 Notă: acesta este un executabil **Windows** (folosește pyserial +
@@ -141,9 +177,10 @@ Cu cât categoria are mai multe cărți etichetate (din import-uri proprii,
 re-antrenate periodic), cu atât predicțiile devin mai sigure.
 
 **Modelul vine deja antrenat** — `ml_model.joblib` este inclus în proiect
-(și copiat automat lângă `.exe` la fiecare rulare a `build_exe.bat`), deci
-aplicația e pregătită din prima rulare să sugereze categorii pentru orice
-import ulterior, fără niciun pas suplimentar.
+și împachetat în executabil, de unde e copiat automat în folderul de date
+(`%LOCALAPPDATA%\KenoLib`) la prima pornire. Astfel aplicația e pregătită din
+prima rulare să sugereze categorii pentru orice import ulterior, fără niciun
+pas suplimentar.
 
 ### Îmbogățire online la import (opțional)
 

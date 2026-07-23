@@ -5,9 +5,10 @@ __pycache__/
 # Teste
 .pytest_cache/
 
-# Rezultate de build (regenerabile din surse cu build_exe.bat)
+# Rezultate de build (regenerabile din surse cu build_exe.bat / make_installer.bat)
 build/
 dist/
+installer/Output/
 
 # Datele reale ale utilizatorului și setările locale -- nu trebuie
 # partajate/versionate (fiecare calculator își are propriul catalog).
