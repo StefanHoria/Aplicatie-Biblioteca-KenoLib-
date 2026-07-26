@@ -131,11 +131,13 @@ cu Python.
 Pagina **Cititori** listează toate persoanele care împrumută, cu **clasa**
 din care fac parte (biblioteca fiind școlară), numărul de cărți pe care le au
 acum la ele și câte sunt restante (evidențiate roșu). Selectând un cititor,
-panoul din dreapta arată clasa și datele lui de contact, cărțile împrumutate
-acum (cu scadențe) și istoricul returnărilor. Se poate căuta și după clasă.
-Clasa e opțională (un profesor poate să nu aibă una) și se completează la
-adăugarea/editarea cititorului. Un cititor care încă are cărți nereturnate nu
-poate fi șters (ca să nu se piardă înregistrările de împrumut încă deschise).
+panoul din dreapta arată clasa, **adresa** și datele lui de contact, cărțile
+împrumutate acum (cu scadențe) și istoricul returnărilor. Se poate căuta și
+după clasă. Clasa și adresa sunt opționale (un profesor poate să nu aibă
+clasă) și se completează la adăugarea/editarea cititorului; adresa apare doar
+în panoul de detalii, nu și ca o coloană în tabel. Un cititor care încă are
+cărți nereturnate nu poate fi șters (ca să nu se piardă înregistrările de
+împrumut încă deschise).
 
 **Exemplare multiple.** O carte cu mai multe exemplare (`Nr. exemplare`)
 poate fi împrumutată de mai multe ori simultan — devine „indisponibilă” abia
@@ -146,6 +148,27 @@ doar cărțile cu cel puțin un exemplar liber, împreună cu numărul rămas.
 cititor poate fi pus la coadă din pagina **Rezervări**. Când cartea se
 întoarce, aplicația anunță cine e următorul la rând, iar rezervarea apare
 evidențiată verde („Disponibilă acum”); după ce i-o dai, o marchezi „onorată”.
+
+## Scurtături de tastatură și validări
+
+În paginile **Catalog Cărți** și **Cititori**, cu tabelul selectat:
+
+| Tastă | Efect |
+|---|---|
+| `+` | deschide formularul de adăugare |
+| `Delete` | șterge rândul selectat (cu confirmare) |
+| `Enter` | în formulare: salvează |
+
+Scurtăturile sunt legate de tabel, nu de pagină, așa că `+` sau `Delete`
+tastate în câmpul de căutare se comportă normal. În formularul de carte,
+`Enter` în câmpul ISBN pornește căutarea online, iar în Descriere (câmp
+multi-linie) trece pe rândul următor.
+
+Câmpurile numerice sunt verificate la salvare, cu mesaj explicit și cursorul
+mutat pe câmpul greșit: **an apariție** (între 1450 și anul viitor), **nr.
+exemplare** (întreg pozitiv), **preț**, **CZU**, **telefon** și **email**. Un
+**ISBN** a cărui cifră de control nu se potrivește cere confirmare, dar nu
+blochează salvarea — cărțile vechi au uneori coduri nestandard.
 
 ## Scanner GM65
 
