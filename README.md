@@ -113,12 +113,14 @@ cu Python.
 
 ## Cititori, împrumuturi și rezervări
 
-Pagina **Cititori** listează toate persoanele care împrumută, cu numărul de
-cărți pe care le au acum la ele și câte sunt restante (evidențiate roșu).
-Selectând un cititor, panoul din dreapta arată datele lui de contact,
-cărțile împrumutate acum (cu scadențe) și istoricul returnărilor. Un cititor
-care încă are cărți nereturnate nu poate fi șters (ca să nu se piardă
-înregistrările de împrumut încă deschise).
+Pagina **Cititori** listează toate persoanele care împrumută, cu **clasa**
+din care fac parte (biblioteca fiind școlară), numărul de cărți pe care le au
+acum la ele și câte sunt restante (evidențiate roșu). Selectând un cititor,
+panoul din dreapta arată clasa și datele lui de contact, cărțile împrumutate
+acum (cu scadențe) și istoricul returnărilor. Se poate căuta și după clasă.
+Clasa e opțională (un profesor poate să nu aibă una) și se completează la
+adăugarea/editarea cititorului. Un cititor care încă are cărți nereturnate nu
+poate fi șters (ca să nu se piardă înregistrările de împrumut încă deschise).
 
 **Exemplare multiple.** O carte cu mai multe exemplare (`Nr. exemplare`)
 poate fi împrumutată de mai multe ori simultan — devine „indisponibilă” abia
