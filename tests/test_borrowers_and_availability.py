@@ -119,6 +119,14 @@ def test_borrower_search_matches_class(db):
     assert names == ["Ion Ionescu"]
 
 
+def test_address_is_saved_and_updated(db):
+    bid = db.add_borrower("Ana", "", "", student_class="9 A", address="Str. Florilor 3")
+    assert db.get_borrower(bid)["address"] == "Str. Florilor 3"
+
+    db.update_borrower(bid, "Ana", "", "", student_class="9 A", address="Str. Lalelelor 7")
+    assert db.get_borrower(bid)["address"] == "Str. Lalelelor 7"
+
+
 def test_migration_adds_student_class_to_old_db(tmp_path):
     """O bază de date creată înainte de acest câmp (fără coloana
     student_class) trebuie migrată automat la deschidere, păstrând cititorii

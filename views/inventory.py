@@ -61,9 +61,12 @@ class InventoryPage(ctk.CTkFrame):
         self.sort_mode.grid(row=0, column=1, padx=(0, 16))
 
         ctk.CTkLabel(toolbar, text="Categorie:").grid(row=0, column=2, padx=(0, 8))
+        # state="readonly": valoarea se alege DOAR din listă. Fără asta, câmpul
+        # e editabil, iar un text tastat manual nu corespunde niciunei categorii,
+        # deci filtrul n-ar returna nimic, fără explicație.
         self.category_filter = ctk.CTkComboBox(
             toolbar, values=[ALL_CATEGORIES_OPTION], width=180,
-            command=lambda _: self.refresh(),
+            state="readonly", command=lambda _: self.refresh(),
         )
         self.category_filter.set(ALL_CATEGORIES_OPTION)
         self.category_filter.grid(row=0, column=3, padx=(0, 16))

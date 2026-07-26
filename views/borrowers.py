@@ -89,6 +89,13 @@ class BorrowersPage(ctk.CTkFrame):
         self.tree.tag_configure("overdue", foreground=COLOR_ROW_HIGHLIGHT_FG, background=COLOR_DANGER_BG)
         self.tree.bind("<<TreeviewSelect>>", lambda e: self._render_detail())
         self.tree.bind("<Double-1>", lambda e: self._edit_borrower())
+        # Scurtături de tastatură, legate de tabel (nu de pagină) ca să NU
+        # prindă „+”/Delete tastate în câmpul de căutare: „+” (inclusiv cel de
+        # pe blocul numeric) deschide adăugarea; Delete șterge cititorul
+        # selectat (fără efect dacă nu e nimic selectat).
+        self.tree.bind("<plus>", lambda e: self._add_borrower())
+        self.tree.bind("<KP_Add>", lambda e: self._add_borrower())
+        self.tree.bind("<Delete>", lambda e: self._delete_borrower() if self._selected_borrower() else None)
 
         # --- Panou detalii cititor (dreapta) ---
         detail_frame = ctk.CTkFrame(self, corner_radius=12)
@@ -176,6 +183,9 @@ class BorrowersPage(ctk.CTkFrame):
             contact_lines.append(f"✉  {borrower['email']}")
         if borrower["phone"]:
             contact_lines.append(f"☎  {borrower['phone']}")
+        # Adresa apare doar aici, în detalii -- intenționat NU și în tabel.
+        if borrower.get("address"):
+            contact_lines.append(f"⌂  {borrower['address']}")
         contact_lines.append(f"Înregistrat: {format_date_ro(borrower['registered_date'])}")
         ctk.CTkLabel(
             self.detail_scroll, text="\n".join(contact_lines), anchor="w",

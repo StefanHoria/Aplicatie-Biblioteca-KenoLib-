@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS borrowers (
     email           TEXT,
     phone           TEXT,
     student_class   TEXT,
+    address         TEXT,
     registered_date TEXT NOT NULL
 );
 
@@ -88,6 +89,7 @@ BOOKS_NEW_COLUMNS = [
 # date mai vechi, fără să atingă cititorii deja înregistrați.
 BORROWERS_NEW_COLUMNS = [
     ("student_class", "TEXT"),
+    ("address", "TEXT"),
 ]
 
 
@@ -396,24 +398,25 @@ class Database:
         ).fetchall()
         return _rows_to_list(rows)
 
-    def add_borrower(self, name, email, phone, student_class=None, registered_date=None):
+    def add_borrower(self, name, email, phone, student_class=None, address=None,
+                     registered_date=None):
         registered_date = registered_date or date.today().isoformat()
         with self._write_lock:
             conn = self._connect()
             cur = conn.execute(
-                "INSERT INTO borrowers (name, email, phone, student_class, registered_date) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (name, email, phone, student_class, registered_date),
+                "INSERT INTO borrowers (name, email, phone, student_class, address, registered_date) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (name, email, phone, student_class, address, registered_date),
             )
             conn.commit()
             return cur.lastrowid
 
-    def update_borrower(self, borrower_id, name, email, phone, student_class=None):
+    def update_borrower(self, borrower_id, name, email, phone, student_class=None, address=None):
         with self._write_lock:
             conn = self._connect()
             conn.execute(
-                "UPDATE borrowers SET name=?, email=?, phone=?, student_class=? WHERE id=?",
-                (name, email, phone, student_class, borrower_id),
+                "UPDATE borrowers SET name=?, email=?, phone=?, student_class=?, address=? WHERE id=?",
+                (name, email, phone, student_class, address, borrower_id),
             )
             conn.commit()
 

@@ -216,3 +216,97 @@ def test_borrower_dialog_prefills_and_saves_class(root, app):
     dlg.class_entry.insert(0, "8 C")
     dlg._save()
     assert app.db.get_borrower(bid)["student_class"] == "8 C"
+
+
+def test_borrower_address_saves_shows_in_detail_not_table(root, app):
+    from views.dialogs import BorrowerDialog
+    from views.borrowers import BorrowersPage
+
+    bid = app.db.add_borrower("Ion", "", "", student_class="7 B")
+    dlg = BorrowerDialog(root, app, borrower=app.db.get_borrower(bid))
+    dlg.address_entry.insert(0, "Str. Mare 10")
+    dlg._save()
+    assert app.db.get_borrower(bid)["address"] == "Str. Mare 10"
+
+    page = BorrowersPage(root, app)
+    page.refresh()
+
+    # adresa NU apare în rândul din tabel...
+    row_values = [str(v) for v in page.tree.item(str(bid))["values"]]
+    assert "Str. Mare 10" not in row_values
+
+    # ...dar apare în panoul de detalii al cititorului selectat
+    page.tree.selection_set(str(bid))
+    page._render_detail()
+    detail_texts = []
+    for w in page.detail_scroll.winfo_children():
+        try:
+            detail_texts.append(w.cget("text"))
+        except Exception:
+            pass
+    assert any("Str. Mare 10" in t for t in detail_texts)
+
+
+def test_borrower_dialog_has_enter_to_save_binding(root, app):
+    from views.dialogs import BorrowerDialog
+
+    dlg = BorrowerDialog(root, app)
+    # Enter pe fereastră declanșează salvarea (toate câmpurile sunt pe un rând).
+    assert dlg.bind("<Return>")
+
+
+def test_book_dialog_enter_bindings_save_and_search_not_description(root, app):
+    from views.dialogs import BookDialog
+
+    dlg = BookDialog(root, app)
+    # câmpurile text au Enter (salvare) și ISBN are Enter (căutare online)...
+    assert dlg.title_entry._entry.bind("<Return>")
+    assert dlg.isbn_entry._entry.bind("<Return>")
+    # ...dar descrierea (multi-linie) rămâne neatinsă: Enter = rând nou, nu salvare
+    assert not dlg.desc_text._textbox.bind("<Return>")
+
+
+def test_selection_comboboxes_are_readonly(root, app):
+    """Listele din care se alege o valoare existentă (filtru de categorie,
+    carte/cititor la împrumut și rezervare) nu trebuie să fie editabile: un
+    text tastat manual nu corespunde niciunei intrări, deci ar duce la un
+    filtru gol sau la „Selecție invalidă”, fără explicație."""
+    from views.inventory import InventoryPage
+    from views.dialogs import LoanDialog, ReservationDialog
+
+    page = InventoryPage(root, app)
+    assert page.category_filter.cget("state") == "readonly"
+
+    for dialog_class in (LoanDialog, ReservationDialog):
+        dlg = dialog_class(root, app)
+        assert dlg.book_combo.cget("state") == "readonly"
+        assert dlg.borrower_combo.cget("state") == "readonly"
+        dlg.destroy()
+
+
+def test_book_dialog_category_stays_editable(root, app):
+    """Prin contrast, categoria din formularul de carte rămâne editabilă --
+    scrierea unui nume nou acolo e singura cale din interfață de a crea o
+    categorie nouă (database.get_or_create_category)."""
+    from views.dialogs import BookDialog
+
+    dlg = BookDialog(root, app)
+    assert dlg.category_combo.cget("state") == "normal"
+
+
+def test_catalog_page_has_add_delete_key_bindings(root, app):
+    from views.catalog import CatalogPage
+
+    page = CatalogPage(root, app)
+    assert page.tree.bind("<plus>")
+    assert page.tree.bind("<KP_Add>")
+    assert page.tree.bind("<Delete>")
+
+
+def test_borrowers_page_has_add_delete_key_bindings(root, app):
+    from views.borrowers import BorrowersPage
+
+    page = BorrowersPage(root, app)
+    assert page.tree.bind("<plus>")
+    assert page.tree.bind("<KP_Add>")
+    assert page.tree.bind("<Delete>")

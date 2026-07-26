@@ -13,6 +13,7 @@ pagina care le-a deschis printr-un callback `on_saved`.
 import queue
 import threading
 import tkinter as tk
+from datetime import date
 from tkinter import messagebox
 
 import customtkinter as ctk
@@ -20,7 +21,11 @@ import customtkinter as ctk
 import api_service
 from config import UNCONFIRMED_CATEGORY, suggest_czu, COLOR_DANGER_TEXT, BRAND_ACCENT, BRAND_TITLE_FONT
 from settings_service import get_default_loan_days, get_profile, set_profile
-from utils import today_iso, due_date_iso, is_valid_isbn, normalize_isbn, make_logo_icon
+from utils import (
+    today_iso, due_date_iso, is_valid_isbn, normalize_isbn, make_logo_icon,
+    is_plausible_pub_year, is_plausible_phone, is_plausible_email, is_plausible_czu,
+    MIN_PUB_YEAR,
+)
 
 
 class BaseDialog(ctk.CTkToplevel):
@@ -221,6 +226,15 @@ class BookDialog(BaseDialog):
             self._fill_from_book(book)
         else:
             self.category_combo.set(UNCONFIRMED_CATEGORY)
+
+        # Enter salvează din câmpurile pe un singur rând; în câmpul ISBN, Enter
+        # declanșează căutarea online (mai util acolo). Descrierea (multi-linie,
+        # unde Enter face rând nou) și lista de categorii rămân neatinse.
+        for entry in (self.title_entry, self.author_entry, self.year_entry,
+                      self.copies_entry, self.publisher_entry, self.pub_place_entry,
+                      self.price_entry, self.czu_entry):
+            entry.bind("<Return>", lambda e: self._save())
+        self.isbn_entry.bind("<Return>", lambda e: self._lookup_online())
 
         self.protocol("WM_DELETE_WINDOW", self.close)
         self._poll_api_queue()
@@ -447,23 +461,42 @@ class BookDialog(BaseDialog):
             )
 
     # ------------------------------------------------------------------
+    def _warn(self, title, message, widget):
+        """Afișează o eroare de validare și duce focusul pe câmpul greșit, ca
+        utilizatorul să poată corecta imediat, fără să-l caute în formular."""
+        messagebox.showwarning(title, message, parent=self)
+        widget.focus()
+
     def _save(self):
         title = self.title_entry.get().strip()
         if not title:
-            messagebox.showwarning("Titlu lipsă", "Titlul este obligatoriu.", parent=self)
+            self._warn("Titlu lipsă", "Titlul este obligatoriu.", self.title_entry)
             return
 
-        isbn = self.isbn_entry.get().strip()
-        author = self.author_entry.get().strip()
-        desc = self.desc_text.get("1.0", "end").strip()
+        # Validările „dure” (valoare imposibilă) se fac întâi, în ordinea
+        # câmpurilor din formular; ISBN-ul, care doar cere confirmare, e lăsat
+        # la final, ca utilizatorul să nu confirme înainte de a repara restul.
         year_raw = self.year_entry.get().strip()
-        pub_year = int(year_raw) if year_raw.isdigit() else None
-        category_name = self.category_combo.get().strip() or UNCONFIRMED_CATEGORY
-        category_id = self.app.db.get_or_create_category(category_name)
+        if not is_plausible_pub_year(year_raw):
+            self._warn(
+                "An invalid",
+                f"Anul apariției trebuie să fie un număr între {MIN_PUB_YEAR} și "
+                f"{date.today().year + 1} (ex.: 1998).\n\nAi introdus: „{year_raw}”.",
+                self.year_entry,
+            )
+            return
+        pub_year = int(year_raw) if year_raw else None
 
-        publisher = self.publisher_entry.get().strip()
-        pub_place = self.pub_place_entry.get().strip()
-        czu = self.czu_entry.get().strip()
+        copies_raw = self.copies_entry.get().strip()
+        if copies_raw and (not copies_raw.isdigit() or int(copies_raw) < 1):
+            self._warn(
+                "Număr de exemplare invalid",
+                "Numărul de exemplare trebuie să fie un număr întreg mai mare ca 0 "
+                f"(ex.: 3).\n\nAi introdus: „{copies_raw}”.",
+                self.copies_entry,
+            )
+            return
+        copies = int(copies_raw) if copies_raw else 1
 
         price_raw = self.price_entry.get().strip().replace(",", ".")
         price = None
@@ -471,13 +504,48 @@ class BookDialog(BaseDialog):
             try:
                 price = float(price_raw)
             except ValueError:
-                messagebox.showwarning(
-                    "Preț invalid", "Prețul trebuie să fie un număr (ex: 39.99).", parent=self
+                self._warn(
+                    "Preț invalid",
+                    f"Prețul trebuie să fie un număr (ex.: 39.99).\n\nAi introdus: „{price_raw}”.",
+                    self.price_entry,
                 )
                 return
+            if price < 0:
+                self._warn("Preț invalid", "Prețul nu poate fi negativ.", self.price_entry)
+                return
 
-        copies_raw = self.copies_entry.get().strip()
-        copies = int(copies_raw) if copies_raw.isdigit() and int(copies_raw) > 0 else 1
+        czu = self.czu_entry.get().strip()
+        if not is_plausible_czu(czu):
+            self._warn(
+                "CZU invalid",
+                "Codul CZU poate conține doar cifre și semne precum . - / ( ) : = "
+                f"(ex.: 821.135.1).\n\nAi introdus: „{czu}”.\n\n"
+                "Poți folosi butonul „Sugerează” pentru un cod de pornire.",
+                self.czu_entry,
+            )
+            return
+
+        # Un ISBN cu cifra de control greșită e aproape sigur o greșeală de
+        # tastare, dar există și cărți vechi cu coduri nestandard -- de aceea
+        # se cere confirmare, nu se blochează salvarea.
+        isbn = self.isbn_entry.get().strip()
+        if isbn and not is_valid_isbn(isbn):
+            if not messagebox.askyesno(
+                "ISBN invalid",
+                f"ISBN-ul „{isbn}” nu pare valid (cifra de control nu se potrivește).\n\n"
+                "Verifică dacă l-ai tastat corect. Salvezi cartea așa?",
+                parent=self,
+            ):
+                self.isbn_entry.focus()
+                return
+
+        author = self.author_entry.get().strip()
+        desc = self.desc_text.get("1.0", "end").strip()
+        category_name = self.category_combo.get().strip() or UNCONFIRMED_CATEGORY
+        category_id = self.app.db.get_or_create_category(category_name)
+
+        publisher = self.publisher_entry.get().strip()
+        pub_place = self.pub_place_entry.get().strip()
 
         if self.book:
             self.app.db.update_book(
@@ -504,7 +572,7 @@ class BorrowerDialog(BaseDialog):
 
     def __init__(self, master, app, borrower=None, on_saved=None):
         mode = "Editează împrumutător" if borrower else "Adaugă împrumutător"
-        super().__init__(master, mode, width=420, height=390)
+        super().__init__(master, mode, width=420, height=460)
         self.app = app
         self.borrower = borrower
         self.on_saved = on_saved
@@ -530,8 +598,14 @@ class BorrowerDialog(BaseDialog):
         self.phone_entry = ctk.CTkEntry(self)
         self.phone_entry.grid(row=7, column=0, sticky="ew", padx=16)
 
+        # Adresa: se completează aici, dar (spre deosebire de clasă) NU apare în
+        # tabelul de cititori -- doar în panoul de detalii al cititorului.
+        ctk.CTkLabel(self, text="Adresă").grid(row=8, column=0, sticky="w", **pad)
+        self.address_entry = ctk.CTkEntry(self, placeholder_text="ex.: Str. Florilor nr. 3, Cluj-Napoca")
+        self.address_entry.grid(row=9, column=0, sticky="ew", padx=16)
+
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.grid(row=8, column=0, sticky="ew", padx=16, pady=20)
+        btn_row.grid(row=10, column=0, sticky="ew", padx=16, pady=20)
         btn_row.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkButton(btn_row, text="Anulează", fg_color="gray40",
                       command=self.destroy).grid(row=0, column=0, sticky="ew", padx=(0, 6))
@@ -544,21 +618,51 @@ class BorrowerDialog(BaseDialog):
             self.class_entry.insert(0, borrower.get("student_class") or "")
             self.email_entry.insert(0, borrower.get("email") or "")
             self.phone_entry.insert(0, borrower.get("phone") or "")
+            self.address_entry.insert(0, borrower.get("address") or "")
+
+        # Enter salvează (toate câmpurile sunt pe un singur rând, deci nu există
+        # conflict cu un câmp multi-linie); focusul pornește pe primul câmp.
+        self.bind("<Return>", lambda e: self._save())
+        self.name_entry.focus()
 
     def _save(self):
         name = self.name_entry.get().strip()
         if not name:
             messagebox.showwarning("Nume lipsă", "Numele este obligatoriu.", parent=self)
+            self.name_entry.focus()
             return
         student_class = self.class_entry.get().strip()
         email = self.email_entry.get().strip()
         phone = self.phone_entry.get().strip()
+        address = self.address_entry.get().strip()
+
+        if not is_plausible_email(email):
+            messagebox.showwarning(
+                "Email invalid",
+                "Adresa de email nu pare validă (ex.: nume@scoala.ro).\n\n"
+                f"Ai introdus: „{email}”.",
+                parent=self,
+            )
+            self.email_entry.focus()
+            return
+
+        if not is_plausible_phone(phone):
+            messagebox.showwarning(
+                "Telefon invalid",
+                "Numărul de telefon poate conține doar cifre și semnele + - . ( ) "
+                "și trebuie să aibă cel puțin 6 cifre (ex.: 0722 123 456).\n\n"
+                f"Ai introdus: „{phone}”.",
+                parent=self,
+            )
+            self.phone_entry.focus()
+            return
 
         if self.borrower:
-            self.app.db.update_borrower(self.borrower["id"], name, email, phone, student_class)
+            self.app.db.update_borrower(self.borrower["id"], name, email, phone,
+                                        student_class, address)
             borrower_id = self.borrower["id"]
         else:
-            borrower_id = self.app.db.add_borrower(name, email, phone, student_class)
+            borrower_id = self.app.db.add_borrower(name, email, phone, student_class, address)
 
         if self.on_saved:
             self.on_saved(borrower_id)
@@ -582,7 +686,11 @@ class LoanDialog(BaseDialog):
         self.book_search.grid(row=1, column=0, sticky="ew", padx=16)
         self.book_search.bind("<KeyRelease>", lambda e: self._refresh_books())
 
-        self.book_combo = ctk.CTkComboBox(self, values=[])
+        # state="readonly": cartea/cititorul se aleg DOAR din listă -- valoarea
+        # selectată e căutată apoi în _book_map/_borrower_map ca să afle id-ul,
+        # deci un text tastat manual n-ar corespunde nimănui („Selecție
+        # invalidă”). Filtrarea listei se face din câmpul de căutare de deasupra.
+        self.book_combo = ctk.CTkComboBox(self, values=[], state="readonly")
         self.book_combo.grid(row=2, column=0, sticky="ew", padx=16, pady=(6, 0))
 
         ctk.CTkLabel(self, text="Caută împrumutător").grid(row=3, column=0, sticky="w", **pad)
@@ -593,7 +701,7 @@ class LoanDialog(BaseDialog):
         borrower_row = ctk.CTkFrame(self, fg_color="transparent")
         borrower_row.grid(row=5, column=0, sticky="ew", padx=16, pady=(6, 0))
         borrower_row.grid_columnconfigure(0, weight=1)
-        self.borrower_combo = ctk.CTkComboBox(borrower_row, values=[])
+        self.borrower_combo = ctk.CTkComboBox(borrower_row, values=[], state="readonly")
         self.borrower_combo.grid(row=0, column=0, sticky="ew")
         ctk.CTkButton(borrower_row, text="+ Nou", width=70,
                       command=self._add_new_borrower).grid(row=0, column=1, padx=(8, 0))
@@ -699,7 +807,9 @@ class ReservationDialog(BaseDialog):
         self.book_search = ctk.CTkEntry(self, placeholder_text="titlu, autor sau ISBN...")
         self.book_search.grid(row=1, column=0, sticky="ew", padx=16)
         self.book_search.bind("<KeyRelease>", lambda e: self._refresh_books())
-        self.book_combo = ctk.CTkComboBox(self, values=[])
+        # readonly, ca la LoanDialog: selecția e mapată la un id, deci textul
+        # tastat manual n-ar corespunde nici unei cărți/cititor.
+        self.book_combo = ctk.CTkComboBox(self, values=[], state="readonly")
         self.book_combo.grid(row=2, column=0, sticky="ew", padx=16, pady=(6, 0))
 
         ctk.CTkLabel(self, text="Caută cititor").grid(row=3, column=0, sticky="w", **pad)
@@ -710,7 +820,7 @@ class ReservationDialog(BaseDialog):
         borrower_row = ctk.CTkFrame(self, fg_color="transparent")
         borrower_row.grid(row=5, column=0, sticky="ew", padx=16, pady=(6, 0))
         borrower_row.grid_columnconfigure(0, weight=1)
-        self.borrower_combo = ctk.CTkComboBox(borrower_row, values=[])
+        self.borrower_combo = ctk.CTkComboBox(borrower_row, values=[], state="readonly")
         self.borrower_combo.grid(row=0, column=0, sticky="ew")
         ctk.CTkButton(borrower_row, text="+ Nou", width=70,
                       command=self._add_new_borrower).grid(row=0, column=1, padx=(8, 0))

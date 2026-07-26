@@ -94,6 +94,13 @@ class CatalogPage(ctk.CTkFrame):
         h_scrollbar.grid(row=1, column=0, sticky="ew", padx=8, pady=(0, 8))
 
         self.tree.bind("<Double-1>", lambda e: self._edit_book())
+        # Scurtături de tastatură, legate de tabel (nu de pagină) ca să NU
+        # prindă „+”/Delete tastate în câmpul de căutare: „+” (inclusiv cel de
+        # pe blocul numeric) deschide adăugarea; Delete șterge cartea selectată
+        # (fără efect dacă nu e nimic selectat).
+        self.tree.bind("<plus>", lambda e: self._add_book())
+        self.tree.bind("<KP_Add>", lambda e: self._add_book())
+        self.tree.bind("<Delete>", lambda e: self._delete_book() if self._selected_book() else None)
         self.tree.tag_configure(
             "unconfirmed", foreground=COLOR_ROW_HIGHLIGHT_FG, background=COLOR_UNCONFIRMED_BG
         )
