@@ -29,6 +29,7 @@ from tkinter import filedialog, messagebox
 import customtkinter as ctk
 
 from config import COLOR_SUCCESS, COLOR_WARNING_BG, COLOR_WARNING_BG_HOVER
+from views.widgets import SmoothScrollableFrame
 from settings_service import (
     get_backup_dir,
     set_backup_dir,
@@ -69,15 +70,23 @@ class SettingsPage(ctk.CTkFrame):
         self.app = app
 
         self.grid_columnconfigure(0, weight=1)
+        # Titlul rămâne fix sus; tot conținutul (care poate depăși înălțimea
+        # ferestrei) stă într-un cadru derulabil -- altfel ultimele secțiuni
+        # (ex. „Împrumuturi”) rămân sub marginea de jos, inaccesibile.
+        self.grid_rowconfigure(1, weight=1)
 
         ctk.CTkLabel(self, text="Setări", font=("", 24, "bold")).grid(
             row=0, column=0, sticky="w", padx=24, pady=(20, 10)
         )
 
+        self.scroll = SmoothScrollableFrame(self, fg_color="transparent")
+        self.scroll.grid(row=1, column=0, sticky="nsew")
+        self.scroll.grid_columnconfigure(0, weight=1)
+
         # --- Profil bibliotecă ---
         profile = get_profile()
-        profile_frame = ctk.CTkFrame(self, corner_radius=12)
-        profile_frame.grid(row=1, column=0, sticky="new", padx=24, pady=(0, 24))
+        profile_frame = ctk.CTkFrame(self.scroll, corner_radius=12)
+        profile_frame.grid(row=0, column=0, sticky="new", padx=24, pady=(0, 24))
         profile_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -108,8 +117,8 @@ class SettingsPage(ctk.CTkFrame):
             profile_frame, text="Salvează profilul", command=self._save_profile
         ).grid(row=6, column=0, sticky="w", padx=16, pady=(0, 16))
 
-        backup_frame = ctk.CTkFrame(self, corner_radius=12)
-        backup_frame.grid(row=2, column=0, sticky="new", padx=24, pady=(0, 24))
+        backup_frame = ctk.CTkFrame(self.scroll, corner_radius=12)
+        backup_frame.grid(row=1, column=0, sticky="new", padx=24, pady=(0, 24))
         backup_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
@@ -177,8 +186,8 @@ class SettingsPage(ctk.CTkFrame):
             hover_color=COLOR_WARNING_BG_HOVER, command=self._restore_backup,
         ).grid(row=10, column=0, sticky="w", padx=16, pady=(0, 16))
 
-        loans_frame = ctk.CTkFrame(self, corner_radius=12)
-        loans_frame.grid(row=3, column=0, sticky="new", padx=24, pady=(0, 24))
+        loans_frame = ctk.CTkFrame(self.scroll, corner_radius=12)
+        loans_frame.grid(row=2, column=0, sticky="new", padx=24, pady=(0, 24))
         loans_frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(
