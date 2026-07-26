@@ -23,11 +23,23 @@ python main.py
 La prima rulare se creează automat `library.db` (SQLite) cu schema și
 categoriile implicite.
 
+## Profil bibliotecă (la prima pornire)
+
+La prima pornire, aplicația cere un profil scurt: **numele bibliotecii /
+bibliotecarului** și **școala de care aparține** biblioteca. Acestea apar în
+bara laterală și în titlul ferestrei și pot fi modificate oricând din pagina
+**Setări → Profil bibliotecă**.
+
 ## Distribuire pe alte calculatoare (fără Python instalat)
 
 Aplicația poate fi dusă pe orice calculator Windows fără să fie nevoie
 de Python sau de librăriile din `requirements.txt`. Există două variante;
 ambele se construiesc **o singură dată**, pe calculatorul de dezvoltare.
+
+> **Utilizatorii finali nu trebuie să construiască nimic:** cea mai recentă
+> versiune a installerului `KenoLib-Setup.exe` se poate descărca direct din
+> secțiunea [Releases](https://github.com/StefanHoria/Aplicatie-Biblioteca-KenoLib-/releases).
+> Restul acestei secțiuni e despre reconstruirea lui din surse.
 
 ### Varianta recomandată: installer într-un singur fișier
 
@@ -94,11 +106,13 @@ cu Python.
 |---|---|
 | `config.py` | Constante globale (căi, URL-uri API, praguri ML) |
 | `database.py` | Model — acces SQLite, schema, CRUD |
+| `settings_service.py` | Persistă setările și profilul (JSON): profil bibliotecă, backup, zile împrumut |
 | `ml_classifier.py` | Clasificator ML (TF-IDF + Regresie Logistică) pentru sugestii de categorie |
 | `scanner_service.py` | Ascultare pe port serial (thread separat) pentru scannerul GM65 |
 | `api_service.py` | Interogare Google Books / Open Library, după ISBN sau după titlu+autor |
 | `pdf_service.py` | Generare PDF: export inventar/rapoarte + etichete cu cod de bare (reportlab) |
 | `gui_app.py` | Fereastra principală, sidebar, navigare |
+| `utils.py` | Utilitare comune (stilizare tabele ttk, iconiță logo desenată, validare ISBN, date) |
 | `views/dashboard.py` | Pagina Dashboard (statistici + activitate recentă) |
 | `views/catalog.py` | Pagina Catalog Cărți (tabel, căutare, CRUD) |
 | `views/borrowers.py` | Pagina Cititori (listă cititori + istoric/împrumuturi per cititor) |
@@ -107,8 +121,9 @@ cu Python.
 | `views/reports.py` | Pagina Rapoarte (cărți/categorie, istoric tranzacții) + export PDF |
 | `views/inventory.py` | Pagina Inventar (listă completă; export CSV/PDF + etichete cod de bare) |
 | `views/import_view.py` | Import CSV cu mapare coloane + clasificare ML |
-| `views/settings.py` | Pagina Setări (backup, auto-backup, retenție, zile împrumut) |
-| `views/dialogs.py` | Ferestre modale: carte, cititor, împrumut, rezervare |
+| `views/settings.py` | Pagina Setări (profil bibliotecă, backup, auto-backup, retenție, zile împrumut) |
+| `views/dialogs.py` | Ferestre modale: profil (prima pornire), carte, cititor, împrumut, rezervare |
+| `views/widgets.py` | Widget-uri reutilizabile (ex. cadru derulabil fluid) |
 | `main.py` | Punct de pornire |
 
 ## Cititori, împrumuturi și rezervări
