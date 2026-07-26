@@ -185,3 +185,70 @@ def is_valid_isbn(isbn):
     if len(isbn) == 13:
         return _is_valid_isbn13(isbn)
     return False
+
+
+# --------------------------------------------------------------------------
+# Validări pentru câmpurile din formulare (carte / cititor)
+# --------------------------------------------------------------------------
+# Scopul lor e să prindă greșelile evidente de tastare -- litere într-un număr
+# de telefon, un an aiurea, un CZU cu text -- și să le explice, în loc ca
+# valoarea greșită să fie ignorată în tăcere la salvare (comportamentul de
+# dinainte pentru An și Nr. exemplare). Sunt intenționat permisive: un catalog
+# real conține și date neobișnuite, iar o validare prea strictă ar bloca
+# inutil munca bibliotecarului.
+#
+# Toate acceptă textul gol ca valid -- câmpurile sunt opționale; obligativitatea
+# se verifică separat, acolo unde e cazul (titlu, nume).
+
+MIN_PUB_YEAR = 1450          # ~apariția tiparului; orice an mai mic e o greșeală
+MIN_PHONE_DIGITS = 6         # sub atât nu e un număr de telefon real
+
+_PHONE_ALLOWED_RE = re.compile(r"^[0-9+()\-./\s]+$")
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Semnele permise în notația CZU/UDC: separatoare zecimale, intervale (/) și
+# auxiliarele comune (paranteze, ghilimele, + : = *).
+_CZU_ALLOWED_RE = re.compile(r"^[0-9.\-/()\[\]'\"+:=*\s]+$")
+
+
+def is_plausible_pub_year(value):
+    """Anul apariției: număr întreg între MIN_PUB_YEAR și anul viitor
+    (cărțile apărute la sfârșit de an poartă adesea anul următor)."""
+    value = (value or "").strip()
+    if not value:
+        return True
+    if not value.isdigit():
+        return False
+    return MIN_PUB_YEAR <= int(value) <= date.today().year + 1
+
+
+def is_plausible_phone(value):
+    """Număr de telefon: doar cifre și separatoarele uzuale (+ - . / ( ) spațiu),
+    cu cel puțin MIN_PHONE_DIGITS cifre. Nu impune un format anume -- se folosesc
+    deopotrivă „0722123456”, „0722 123 456”, „+40 722 123 456”."""
+    value = (value or "").strip()
+    if not value:
+        return True
+    if not _PHONE_ALLOWED_RE.match(value):
+        return False
+    return sum(ch.isdigit() for ch in value) >= MIN_PHONE_DIGITS
+
+
+def is_plausible_email(value):
+    """Verificare minimală de formă: ceva@ceva.ceva, fără spații. Validarea
+    completă a unui email nu se poate face decât trimițându-i un mesaj."""
+    value = (value or "").strip()
+    if not value:
+        return True
+    return bool(_EMAIL_RE.match(value))
+
+
+def is_plausible_czu(value):
+    """Cod CZU: cifre plus semnele din notația UDC, cu cel puțin o cifră.
+    Verificare permisivă -- sintaxa CZU completă e mult mai bogată (vezi
+    config.CZU_SUGGESTIONS); aici se resping doar codurile cu litere/text."""
+    value = (value or "").strip()
+    if not value:
+        return True
+    if not _CZU_ALLOWED_RE.match(value):
+        return False
+    return any(ch.isdigit() for ch in value)
