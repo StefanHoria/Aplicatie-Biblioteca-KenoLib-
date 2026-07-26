@@ -48,7 +48,7 @@ class BorrowersPage(ctk.CTkFrame):
         toolbar.grid_columnconfigure(4, weight=1)
 
         self.search_entry = ctk.CTkEntry(
-            toolbar, placeholder_text="caută nume, email sau telefon...", width=240
+            toolbar, placeholder_text="caută nume, clasă, email sau telefon...", width=260
         )
         self.search_entry.grid(row=0, column=0, padx=(0, 8))
         self.search_entry.bind("<KeyRelease>", lambda e: self.refresh())
@@ -69,14 +69,15 @@ class BorrowersPage(ctk.CTkFrame):
         table_frame.grid_rowconfigure(0, weight=1)
 
         style_treeview()
-        columns = ("name", "contact", "active", "overdue")
+        columns = ("name", "sclass", "contact", "active", "overdue")
         self.tree = ttk.Treeview(
             table_frame, columns=columns, show="headings", style=TREEVIEW_STYLE_NAME
         )
-        headings = {"name": "Nume", "contact": "Contact",
+        headings = {"name": "Nume", "sclass": "Clasa", "contact": "Contact",
                     "active": "Împrumutate", "overdue": "Restanțe"}
-        widths = {"name": 175, "contact": 175, "active": 95, "overdue": 80}
-        anchors = {"name": "center", "contact": "center", "active": "center", "overdue": "center"}
+        widths = {"name": 160, "sclass": 70, "contact": 150, "active": 95, "overdue": 80}
+        anchors = {"name": "center", "sclass": "center", "contact": "center",
+                   "active": "center", "overdue": "center"}
         for col in columns:
             self.tree.heading(col, text=headings[col], anchor="center")
             self.tree.column(col, width=widths[col], anchor=anchors[col])
@@ -135,7 +136,8 @@ class BorrowersPage(ctk.CTkFrame):
                 tags = ()
             self.tree.insert(
                 "", "end", iid=iid, tags=tags,
-                values=(b["name"], contact, b["active_count"], overdue or "—"),
+                values=(b["name"], b.get("student_class") or "—", contact,
+                        b["active_count"], overdue or "—"),
             )
             self._borrower_by_iid[iid] = b
 
@@ -166,8 +168,10 @@ class BorrowersPage(ctk.CTkFrame):
 
         self.detail_header.configure(text=borrower["name"])
 
-        # Date de contact.
+        # Clasa (dacă e completată) + date de contact.
         contact_lines = []
+        if borrower.get("student_class"):
+            contact_lines.append(f"Clasa: {borrower['student_class']}")
         if borrower["email"]:
             contact_lines.append(f"✉  {borrower['email']}")
         if borrower["phone"]:

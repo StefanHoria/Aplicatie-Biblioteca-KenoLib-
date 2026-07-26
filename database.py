@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS borrowers (
     name            TEXT NOT NULL,
     email           TEXT,
     phone           TEXT,
+    student_class   TEXT,
     registered_date TEXT NOT NULL
 );
 
@@ -80,6 +81,13 @@ BOOKS_NEW_COLUMNS = [
     ("copies", "INTEGER NOT NULL DEFAULT 1"),
     ("pub_place", "TEXT"),
     ("czu", "TEXT"),
+]
+
+# Idem pentru tabelul "borrowers": clasa cititorului (biblioteca fiind
+# școlară) a fost adăugată ulterior; se pune prin ALTER TABLE la bazele de
+# date mai vechi, fără să atingă cititorii deja înregistrați.
+BORROWERS_NEW_COLUMNS = [
+    ("student_class", "TEXT"),
 ]
 
 
@@ -119,14 +127,16 @@ class Database:
         self._seed_default_categories()
 
     def _migrate_schema(self):
-        """Adaugă coloanele noi la 'books' dacă lipsesc (bază de date
-        creată cu o versiune mai veche a aplicației), fără să șteargă
+        """Adaugă coloanele noi la 'books'/'borrowers' dacă lipsesc (bază de
+        date creată cu o versiune mai veche a aplicației), fără să șteargă
         datele existente."""
         conn = self._connect()
-        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(books)")}
-        for column_name, column_def in BOOKS_NEW_COLUMNS:
-            if column_name not in existing_columns:
-                conn.execute(f"ALTER TABLE books ADD COLUMN {column_name} {column_def}")
+        for table, new_columns in (("books", BOOKS_NEW_COLUMNS),
+                                   ("borrowers", BORROWERS_NEW_COLUMNS)):
+            existing_columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+            for column_name, column_def in new_columns:
+                if column_name not in existing_columns:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column_name} {column_def}")
         conn.commit()
 
     def close(self):
@@ -323,9 +333,9 @@ class Database:
             like = f"%{search}%"
             rows = conn.execute(
                 """SELECT * FROM borrowers
-                   WHERE name LIKE ? OR email LIKE ? OR phone LIKE ?
+                   WHERE name LIKE ? OR email LIKE ? OR phone LIKE ? OR student_class LIKE ?
                    ORDER BY name""",
-                (like, like, like),
+                (like, like, like, like),
             ).fetchall()
         else:
             rows = conn.execute("SELECT * FROM borrowers ORDER BY name").fetchall()
@@ -352,8 +362,8 @@ class Database:
         where = ""
         if search:
             like = f"%{search}%"
-            where = "WHERE b.name LIKE ? OR b.email LIKE ? OR b.phone LIKE ?"
-            params += [like, like, like]
+            where = "WHERE b.name LIKE ? OR b.email LIKE ? OR b.phone LIKE ? OR b.student_class LIKE ?"
+            params += [like, like, like, like]
         rows = conn.execute(
             f"""
             SELECT b.*,
@@ -386,23 +396,24 @@ class Database:
         ).fetchall()
         return _rows_to_list(rows)
 
-    def add_borrower(self, name, email, phone, registered_date=None):
+    def add_borrower(self, name, email, phone, student_class=None, registered_date=None):
         registered_date = registered_date or date.today().isoformat()
         with self._write_lock:
             conn = self._connect()
             cur = conn.execute(
-                "INSERT INTO borrowers (name, email, phone, registered_date) VALUES (?, ?, ?, ?)",
-                (name, email, phone, registered_date),
+                "INSERT INTO borrowers (name, email, phone, student_class, registered_date) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (name, email, phone, student_class, registered_date),
             )
             conn.commit()
             return cur.lastrowid
 
-    def update_borrower(self, borrower_id, name, email, phone):
+    def update_borrower(self, borrower_id, name, email, phone, student_class=None):
         with self._write_lock:
             conn = self._connect()
             conn.execute(
-                "UPDATE borrowers SET name=?, email=?, phone=? WHERE id=?",
-                (name, email, phone, borrower_id),
+                "UPDATE borrowers SET name=?, email=?, phone=?, student_class=? WHERE id=?",
+                (name, email, phone, student_class, borrower_id),
             )
             conn.commit()
 

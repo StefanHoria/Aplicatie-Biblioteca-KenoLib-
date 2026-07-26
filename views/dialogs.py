@@ -504,7 +504,7 @@ class BorrowerDialog(BaseDialog):
 
     def __init__(self, master, app, borrower=None, on_saved=None):
         mode = "Editează împrumutător" if borrower else "Adaugă împrumutător"
-        super().__init__(master, mode, width=420, height=320)
+        super().__init__(master, mode, width=420, height=390)
         self.app = app
         self.borrower = borrower
         self.on_saved = on_saved
@@ -515,16 +515,23 @@ class BorrowerDialog(BaseDialog):
         self.name_entry = ctk.CTkEntry(self)
         self.name_entry.grid(row=1, column=0, sticky="ew", padx=16)
 
-        ctk.CTkLabel(self, text="Email").grid(row=2, column=0, sticky="w", **pad)
-        self.email_entry = ctk.CTkEntry(self)
-        self.email_entry.grid(row=3, column=0, sticky="ew", padx=16)
+        # Clasa: relevantă într-o bibliotecă școlară; pusă imediat sub nume,
+        # înaintea datelor de contact (mai importantă decât email/telefon
+        # pentru un elev). Rămâne opțională -- profesorii n-au clasă.
+        ctk.CTkLabel(self, text="Clasa").grid(row=2, column=0, sticky="w", **pad)
+        self.class_entry = ctk.CTkEntry(self, placeholder_text="ex.: 9 A")
+        self.class_entry.grid(row=3, column=0, sticky="ew", padx=16)
 
-        ctk.CTkLabel(self, text="Telefon").grid(row=4, column=0, sticky="w", **pad)
+        ctk.CTkLabel(self, text="Email").grid(row=4, column=0, sticky="w", **pad)
+        self.email_entry = ctk.CTkEntry(self)
+        self.email_entry.grid(row=5, column=0, sticky="ew", padx=16)
+
+        ctk.CTkLabel(self, text="Telefon").grid(row=6, column=0, sticky="w", **pad)
         self.phone_entry = ctk.CTkEntry(self)
-        self.phone_entry.grid(row=5, column=0, sticky="ew", padx=16)
+        self.phone_entry.grid(row=7, column=0, sticky="ew", padx=16)
 
         btn_row = ctk.CTkFrame(self, fg_color="transparent")
-        btn_row.grid(row=6, column=0, sticky="ew", padx=16, pady=20)
+        btn_row.grid(row=8, column=0, sticky="ew", padx=16, pady=20)
         btn_row.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkButton(btn_row, text="Anulează", fg_color="gray40",
                       command=self.destroy).grid(row=0, column=0, sticky="ew", padx=(0, 6))
@@ -534,6 +541,7 @@ class BorrowerDialog(BaseDialog):
 
         if borrower:
             self.name_entry.insert(0, borrower.get("name") or "")
+            self.class_entry.insert(0, borrower.get("student_class") or "")
             self.email_entry.insert(0, borrower.get("email") or "")
             self.phone_entry.insert(0, borrower.get("phone") or "")
 
@@ -542,14 +550,15 @@ class BorrowerDialog(BaseDialog):
         if not name:
             messagebox.showwarning("Nume lipsă", "Numele este obligatoriu.", parent=self)
             return
+        student_class = self.class_entry.get().strip()
         email = self.email_entry.get().strip()
         phone = self.phone_entry.get().strip()
 
         if self.borrower:
-            self.app.db.update_borrower(self.borrower["id"], name, email, phone)
+            self.app.db.update_borrower(self.borrower["id"], name, email, phone, student_class)
             borrower_id = self.borrower["id"]
         else:
-            borrower_id = self.app.db.add_borrower(name, email, phone)
+            borrower_id = self.app.db.add_borrower(name, email, phone, student_class)
 
         if self.on_saved:
             self.on_saved(borrower_id)

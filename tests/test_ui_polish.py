@@ -186,3 +186,33 @@ def test_reports_history_combines_stripe_and_returned_safely(root, app):
     assert len(children) == 1
     tags = page.tree.item(children[0])["tags"]
     assert "returned" in tags
+
+
+# ------------------------------------------------------------------
+# Clasa cititorului în interfață (pagina Cititori + dialogul de editare)
+# ------------------------------------------------------------------
+def test_borrowers_page_shows_class_in_row(root, app):
+    from views.borrowers import BorrowersPage
+
+    bid = app.db.add_borrower("Ana Popescu", "", "", student_class="9 A")
+    page = BorrowersPage(root, app)
+    page.refresh()
+
+    values = [str(v) for v in page.tree.item(str(bid))["values"]]
+    assert "9 A" in values
+
+
+def test_borrower_dialog_prefills_and_saves_class(root, app):
+    from views.dialogs import BorrowerDialog
+
+    bid = app.db.add_borrower("Ion", "", "", student_class="7 B")
+    borrower = app.db.get_borrower(bid)
+
+    dlg = BorrowerDialog(root, app, borrower=borrower)
+    assert dlg.class_entry.get() == "7 B"
+
+    # schimbă clasa și salvează -> se persistă
+    dlg.class_entry.delete(0, "end")
+    dlg.class_entry.insert(0, "8 C")
+    dlg._save()
+    assert app.db.get_borrower(bid)["student_class"] == "8 C"

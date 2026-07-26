@@ -100,6 +100,50 @@ def test_borrower_stats_search_filters_by_name(db):
     assert names == ["Ana Popescu"]
 
 
+def test_student_class_is_saved_and_updated(db):
+    bid = db.add_borrower("Ana Popescu", "", "", student_class="9 A")
+    assert db.get_borrower(bid)["student_class"] == "9 A"
+
+    db.update_borrower(bid, "Ana Popescu", "", "", student_class="10 B")
+    assert db.get_borrower(bid)["student_class"] == "10 B"
+
+    # apare și în lista cu statistici folosită de pagina Cititori
+    stats = {b["id"]: b for b in db.get_borrowers_with_stats()}[bid]
+    assert stats["student_class"] == "10 B"
+
+
+def test_borrower_search_matches_class(db):
+    db.add_borrower("Ana Popescu", "", "", student_class="9 A")
+    db.add_borrower("Ion Ionescu", "", "", student_class="12 C")
+    names = [b["name"] for b in db.get_borrowers_with_stats(search="12 C")]
+    assert names == ["Ion Ionescu"]
+
+
+def test_migration_adds_student_class_to_old_db(tmp_path):
+    """O bază de date creată înainte de acest câmp (fără coloana
+    student_class) trebuie migrată automat la deschidere, păstrând cititorii
+    existenți -- exact cazul fișierului library.db al utilizatorului."""
+    import sqlite3
+
+    path = str(tmp_path / "old.db")
+    conn = sqlite3.connect(path)
+    conn.executescript(
+        "CREATE TABLE borrowers (id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "name TEXT NOT NULL, email TEXT, phone TEXT, registered_date TEXT NOT NULL);"
+        "INSERT INTO borrowers (name, registered_date) VALUES ('Cititor vechi', '2020-01-01');"
+    )
+    conn.commit()
+    conn.close()
+
+    db = Database(db_path=path)  # _migrate_schema adaugă coloana lipsă
+    existing = db.get_all_borrowers()[0]
+    assert existing["name"] == "Cititor vechi"
+    assert existing["student_class"] is None
+
+    bid = db.add_borrower("Cititor nou", "", "", student_class="7 A")
+    assert db.get_borrower(bid)["student_class"] == "7 A"
+
+
 def test_loans_for_borrower_lists_active_first_then_history(db):
     book1 = _add_book(db, "Activă")
     book2 = _add_book(db, "Returnată")
