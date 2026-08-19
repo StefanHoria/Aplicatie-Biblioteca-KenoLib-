@@ -1,317 +1,309 @@
-# KenoLib — Sistem de Gestiune Bibliotecă
+# KenoLib — Library Management System
 
-Aplicație desktop (Python + CustomTkinter + SQLite) pentru gestiunea unei
-biblioteci: catalog de cărți, cititori, împrumuturi (cu urmărirea
-exemplarelor) și rezervări, rapoarte, inventar cu export CSV/PDF și etichete
-cu cod de bare, import CSV masiv, scanner de coduri de bare GM65 și
-clasificare automată a categoriilor prin machine learning.
+Desktop application (Python + CustomTkinter + SQLite) for running a library: book catalogue,
+borrowers, loans (with per-copy tracking) and reservations, reports, inventory with CSV/PDF export
+and barcode labels, bulk CSV import, GM65 barcode scanner support and automatic category
+classification through machine learning.
 
-## Instalare
+> 🇷🇴 Documentul în limba română: [README.ro.md](README.ro.md)
+>
+> The application interface, the built-in categories and the sample dataset are in Romanian — it was
+> built for a Romanian school library.
+
+## Installation
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Necesită Python 3.9+.
+Requires Python 3.9+.
 
-## Rulare (din surse, cu Python instalat)
+## Running from source (with Python installed)
 
 ```bash
 python main.py
 ```
 
-La prima rulare se creează automat `library.db` (SQLite) cu schema și
-categoriile implicite.
+On first run, `library.db` (SQLite) is created automatically, with the schema and the default
+categories.
 
-## Profil bibliotecă (la prima pornire)
+## Library profile (on first start)
 
-La prima pornire, aplicația cere un profil scurt: **numele bibliotecii /
-bibliotecarului** și **școala de care aparține** biblioteca. Acestea apar în
-bara laterală și în titlul ferestrei și pot fi modificate oricând din pagina
-**Setări → Profil bibliotecă**.
+At first start the application asks for a short profile: the **name of the library / librarian** and
+the **school the library belongs to**. These appear in the sidebar and in the window title, and can
+be changed at any time from **Settings → Library profile**.
 
-## Distribuire pe alte calculatoare (fără Python instalat)
+## Distribution to other computers (without Python)
 
-Aplicația poate fi dusă pe orice calculator Windows fără să fie nevoie
-de Python sau de librăriile din `requirements.txt`. Există două variante;
-ambele se construiesc **o singură dată**, pe calculatorul de dezvoltare.
+The application can be moved to any Windows machine without Python or the libraries in
+`requirements.txt`. There are two options; both are built **once**, on the development machine.
 
-> **Utilizatorii finali nu trebuie să construiască nimic:** cea mai recentă
-> versiune a installerului `KenoLib-Setup.exe` se poate descărca direct din
-> secțiunea [Releases](https://github.com/StefanHoria/Aplicatie-Biblioteca-KenoLib-/releases).
-> Restul acestei secțiuni e despre reconstruirea lui din surse.
+> **End users do not have to build anything:** the latest version of the `KenoLib-Setup.exe`
+> installer can be downloaded directly from the
+> [Releases](https://github.com/StefanHoria/KenoLib-Library-Manager/releases) section.
+> The rest of this section is about rebuilding it from source.
 
-### Varianta recomandată: installer într-un singur fișier
+### Recommended: single-file installer
 
 ```bash
 make_installer.bat
 ```
 
-Scriptul face totul automat:
+The script does everything automatically:
 
-1. construiește executabilul cu PyInstaller (Python + toate librăriile incluse);
-2. se asigură că **Inno Setup** e prezent — îl descarcă și instalează automat
-   de la sursa oficială (release GitHub semnat de jrsoftware) dacă lipsește;
-   necesar doar pe calculatorul pe care *construiești* installerul;
-3. compilează rezultatul în `installer\Output\KenoLib-Setup.exe`.
+1. builds the executable with PyInstaller (Python and all libraries bundled);
+2. makes sure **Inno Setup** is present — downloading and installing it automatically from the
+   official source (a GitHub release signed by jrsoftware) if missing; needed only on the machine
+   where you *build* the installer;
+3. compiles the result into `installer\Output\KenoLib-Setup.exe`.
 
-`KenoLib-Setup.exe` este **un singur fișier** (~55 MB) pe care îl copiezi pe
-orice laptop Windows și îl rulezi. Instalează aplicația cu un expert în limba
-română, creează scurtături în meniul Start și pe desktop și adaugă o intrare de
-dezinstalare — **fără Python și fără nimic altceva instalat manual.** Instalarea
-este per-utilizator (nu cere drepturi de administrator).
+`KenoLib-Setup.exe` is **a single file** (~55 MB) that you copy onto any Windows laptop and run. It
+installs the application through a Romanian-language wizard, creates Start menu and desktop
+shortcuts and registers an uninstall entry — **with no Python and nothing else to install manually.**
+The installation is per-user (no administrator rights required).
 
-### Varianta portabilă: folderul `dist`
+### Portable: the `dist` folder
 
 ```bash
 build_exe.bat
 ```
 
-(sau manual: `pip install -r requirements-build.txt` apoi
+(or manually: `pip install -r requirements-build.txt` then
 `python -m PyInstaller --noconfirm KenoLib.spec`)
 
-Rezultatul apare în `dist\KenoLib\` — un folder cu `KenoLib.exe` și
-dependințele sale (`_internal\`). Copiază **întregul folder** (nu doar
-`.exe`-ul) pe calculatorul țintă și rulează `KenoLib.exe` direct, fără
-instalare.
+The result appears in `dist\KenoLib\` — a folder with `KenoLib.exe` and its dependencies
+(`_internal\`). Copy **the whole folder** (not just the `.exe`) to the target machine and run
+`KenoLib.exe` directly, without installing.
 
-### Unde sunt salvate datele
+### Where the data is stored
 
-Indiferent de variantă, la rularea executabilului datele utilizatorului —
-baza de date `library.db`, `settings.json` și modelul ML — se salvează în
-folderul per-utilizator:
+In either case, when the executable runs, user data — the `library.db` database, `settings.json` and
+the ML model — is stored in the per-user folder:
 
 ```
 %LOCALAPPDATA%\KenoLib
 ```
 
-Acesta este garantat inscriptibil (spre deosebire de `Program Files`, care e
-doar-citire pentru un utilizator obișnuit), așa că aplicația funcționează la
-fel indiferent unde e instalată. În plus, **catalogul bibliotecii
-supraviețuiește** reinstalării, actualizării sau dezinstalării — dezinstalarea
-NU șterge datele. Modelul ML pre-antrenat, împachetat în executabil, este
-copiat aici automat la prima pornire (iar dacă existau date dintr-o rulare
-portabilă anterioară lângă `.exe`, sunt migrate automat).
+This location is guaranteed writable (unlike `Program Files`, which is read-only for an ordinary
+user), so the application behaves the same wherever it is installed. On top of that, **the library
+catalogue survives** reinstallation, updates and uninstallation — uninstalling does NOT delete the
+data. The pre-trained ML model, bundled inside the executable, is copied here automatically on first
+start (and if data from an earlier portable run existed next to the `.exe`, it is migrated
+automatically).
 
-Folderul aplicației este relativ mare (~190 MB) din cauza librăriilor
-scikit-learn/scipy/numpy incluse pentru clasificarea ML — este normal.
+The application folder is fairly large (~190 MB) because of the bundled scikit-learn/scipy/numpy
+libraries used for ML classification — this is expected.
 
-Notă: acesta este un executabil **Windows** (folosește pyserial +
-tkinter nativ); pentru macOS/Linux aplicația trebuie rulată din surse
-cu Python.
+Note: this is a **Windows** executable (it uses pyserial plus native tkinter); on macOS/Linux the
+application has to be run from source with Python.
 
-## Structură modulară
+## Module structure
 
-| Fișier | Rol |
+| File | Role |
 |---|---|
-| `config.py` | Constante globale (căi, URL-uri API, praguri ML) |
-| `database.py` | Model — acces SQLite, schema, CRUD |
-| `settings_service.py` | Persistă setările și profilul (JSON): profil bibliotecă, backup, zile împrumut |
-| `ml_classifier.py` | Clasificator ML (TF-IDF + Regresie Logistică) pentru sugestii de categorie |
-| `scanner_service.py` | Ascultare pe port serial (thread separat) pentru scannerul GM65 |
-| `api_service.py` | Interogare Google Books / Open Library, după ISBN sau după titlu+autor |
-| `pdf_service.py` | Generare PDF: export inventar/rapoarte + etichete cu cod de bare (reportlab) |
-| `gui_app.py` | Fereastra principală, sidebar, navigare |
-| `utils.py` | Utilitare comune (stilizare tabele ttk, iconiță logo desenată, validare ISBN, date) |
-| `views/dashboard.py` | Pagina Dashboard (statistici + activitate recentă) |
-| `views/catalog.py` | Pagina Catalog Cărți (tabel, căutare, CRUD) |
-| `views/borrowers.py` | Pagina Cititori (listă cititori + istoric/împrumuturi per cititor) |
-| `views/loans.py` | Pagina Împrumuturi active (restanțe evidențiate roșu) |
-| `views/reservations.py` | Pagina Rezervări (coadă de așteptare pentru cărți indisponibile) |
-| `views/reports.py` | Pagina Rapoarte (cărți/categorie, istoric tranzacții) + export PDF |
-| `views/inventory.py` | Pagina Inventar (listă completă; export CSV/PDF + etichete cod de bare) |
-| `views/import_view.py` | Import CSV cu mapare coloane + clasificare ML |
-| `views/settings.py` | Pagina Setări (profil bibliotecă, backup, auto-backup, retenție, zile împrumut) |
-| `views/dialogs.py` | Ferestre modale: profil (prima pornire), carte, cititor, împrumut, rezervare |
-| `views/widgets.py` | Widget-uri reutilizabile (ex. cadru derulabil fluid) |
-| `main.py` | Punct de pornire |
+| `config.py` | Global constants (paths, API URLs, ML thresholds) |
+| `database.py` | Model — SQLite access, schema, CRUD |
+| `settings_service.py` | Persists settings and profile (JSON): library profile, backup, loan days |
+| `ml_classifier.py` | ML classifier (TF-IDF + Logistic Regression) for category suggestions |
+| `scanner_service.py` | Serial port listener (separate thread) for the GM65 scanner |
+| `api_service.py` | Google Books / Open Library queries, by ISBN or by title + author |
+| `pdf_service.py` | PDF generation: inventory/report export + barcode labels (reportlab) |
+| `gui_app.py` | Main window, sidebar, navigation |
+| `utils.py` | Shared helpers (ttk table styling, drawn logo icon, ISBN validation, dates) |
+| `views/dashboard.py` | Dashboard page (statistics + recent activity) |
+| `views/catalog.py` | Book catalogue page (table, search, CRUD) |
+| `views/borrowers.py` | Borrowers page (list + per-borrower history and loans) |
+| `views/loans.py` | Active loans page (overdue items highlighted in red) |
+| `views/reservations.py` | Reservations page (waiting queue for unavailable books) |
+| `views/reports.py` | Reports page (books per category, transaction history) + PDF export |
+| `views/inventory.py` | Inventory page (full list; CSV/PDF export + barcode labels) |
+| `views/import_view.py` | CSV import with column mapping + ML classification |
+| `views/settings.py` | Settings page (library profile, backup, auto-backup, retention, loan days) |
+| `views/dialogs.py` | Modal windows: profile (first start), book, borrower, loan, reservation |
+| `views/widgets.py` | Reusable widgets (e.g. smooth scrollable frame) |
+| `main.py` | Entry point |
 
-## Cititori, împrumuturi și rezervări
+## Borrowers, loans and reservations
 
-Pagina **Cititori** listează toate persoanele care împrumută, cu **clasa**
-din care fac parte (biblioteca fiind școlară), numărul de cărți pe care le au
-acum la ele și câte sunt restante (evidențiate roșu). Selectând un cititor,
-panoul din dreapta arată clasa, **adresa** și datele lui de contact, cărțile
-împrumutate acum (cu scadențe) și istoricul returnărilor. Se poate căuta și
-după clasă. Clasa și adresa sunt opționale (un profesor poate să nu aibă
-clasă) și se completează la adăugarea/editarea cititorului; adresa apare doar
-în panoul de detalii, nu și ca o coloană în tabel. Un cititor care încă are
-cărți nereturnate nu poate fi șters (ca să nu se piardă înregistrările de
-împrumut încă deschise).
+The **Borrowers** page lists everyone who borrows, together with their **class** (the library being
+a school one), how many books they currently hold and how many are overdue (highlighted in red).
+Selecting a borrower shows, in the right-hand panel, their class, **address** and contact details,
+the books they currently have out (with due dates) and their return history. Searching by class is
+supported. Class and address are optional (a teacher may not have a class) and are filled in when
+adding or editing a borrower; the address appears only in the detail panel, not as a table column.
+A borrower who still has unreturned books cannot be deleted (so that open loan records are not
+lost).
 
-**Exemplare multiple.** O carte cu mai multe exemplare (`Nr. exemplare`)
-poate fi împrumutată de mai multe ori simultan — devine „indisponibilă” abia
-când toate exemplarele sunt la cititori. La efectuarea unui împrumut se văd
-doar cărțile cu cel puțin un exemplar liber, împreună cu numărul rămas.
+**Multiple copies.** A book with several copies (`Nr. exemplare`) can be lent out several times at
+once — it only becomes "unavailable" when every copy is with a borrower. When creating a loan, only
+books with at least one free copy are shown, along with the remaining count.
 
-**Rezervări.** Pentru o carte ale cărei exemplare sunt toate împrumutate, un
-cititor poate fi pus la coadă din pagina **Rezervări**. Când cartea se
-întoarce, aplicația anunță cine e următorul la rând, iar rezervarea apare
-evidențiată verde („Disponibilă acum”); după ce i-o dai, o marchezi „onorată”.
+**Reservations.** For a book whose copies are all on loan, a borrower can be queued from the
+**Reservations** page. When the book comes back, the application announces who is next in line and
+the reservation is highlighted in green ("Available now"); once handed over, it is marked
+"fulfilled".
 
-## Scurtături de tastatură și validări
+## Keyboard shortcuts and validation
 
-În paginile **Catalog Cărți** și **Cititori**, cu tabelul selectat:
+On the **Book catalogue** and **Borrowers** pages, with the table focused:
 
-| Tastă | Efect |
+| Key | Effect |
 |---|---|
-| `+` | deschide formularul de adăugare |
-| `Delete` | șterge rândul selectat (cu confirmare) |
-| `Enter` | în formulare: salvează |
+| `+` | opens the add form |
+| `Delete` | deletes the selected row (with confirmation) |
+| `Enter` | in forms: save |
 
-Scurtăturile sunt legate de tabel, nu de pagină, așa că `+` sau `Delete`
-tastate în câmpul de căutare se comportă normal. În formularul de carte,
-`Enter` în câmpul ISBN pornește căutarea online, iar în Descriere (câmp
-multi-linie) trece pe rândul următor.
+The shortcuts are bound to the table rather than the page, so `+` or `Delete` typed in the search
+box behave normally. In the book form, `Enter` in the ISBN field starts the online lookup, while in
+Description (a multi-line field) it moves to the next line.
 
-Câmpurile numerice sunt verificate la salvare, cu mesaj explicit și cursorul
-mutat pe câmpul greșit: **an apariție** (între 1450 și anul viitor), **nr.
-exemplare** (întreg pozitiv), **preț**, **CZU**, **telefon** și **email**. Un
-**ISBN** a cărui cifră de control nu se potrivește cere confirmare, dar nu
-blochează salvarea — cărțile vechi au uneori coduri nestandard.
+Numeric fields are checked on save, with an explicit message and the cursor moved to the offending
+field: **publication year** (between 1450 and next year), **number of copies** (positive integer),
+**price**, **UDC code**, **phone** and **email**. An **ISBN** whose check digit does not match asks
+for confirmation but does not block saving — old books sometimes carry non-standard codes.
 
-## Scanner GM65
+## GM65 scanner
 
-Scannerul GM65 (mod USB-COM, emulare tastatură/serial) este detectat ca
-un port COM. Din bara laterală, selectează portul și apasă
-„Conectează”. Codurile scanate în pagina **Catalog Cărți** (dialogul de
-adăugare carte deschis sau nou) completează automat ISBN-ul și declanșează
-căutarea online a datelor cărții.
+The GM65 scanner (USB-COM mode, keyboard/serial emulation) is detected as a COM port. From the
+sidebar, select the port and press "Connect". Codes scanned on the **Book catalogue** page (with the
+add-book dialog open, or a new one) automatically fill in the ISBN and trigger the online lookup.
 
-## Căutare online (Google Books / Open Library)
+## Online lookup (Google Books / Open Library)
 
-Căutarea online (din formularul de carte sau la import) încearcă, în
-ordine:
-1. **După ISBN** (dacă e valid) — Google Books, apoi Open Library.
-2. **După titlu + autor**, dacă ISBN-ul lipsește, e invalid sau nu a dat
-   rezultate — util pentru cărțile vechi fără ISBN. Dacă una dintre surse
-   găsește totuși un ISBN pentru acea carte, câmpul ISBN se completează
-   automat.
+The online lookup (from the book form or during import) tries, in order:
 
-Din cele două surse găsite se păstrează combinația cea mai completă —
-titlu/autor/an din oricare are datele, iar descrierea este cea mai lungă
-găsită (adesea Open Library nu are descriere deloc pentru anumite ediții;
-în acel caz rămâne doar ce a găsit Google Books, sau invers).
+1. **By ISBN** (if valid) — Google Books, then Open Library.
+2. **By title + author**, if the ISBN is missing, invalid or returned nothing — useful for older
+   books without an ISBN. If one of the sources does find an ISBN for that book, the ISBN field is
+   filled in automatically.
 
-## Clasificare ML
+From the two sources, the most complete combination is kept — title/author/year from whichever has
+the data, and the longest description found (Open Library often has no description at all for
+certain editions; in that case only what Google Books found remains, or the other way round).
 
-Modelul (TF-IDF pe n-grame de caractere + Regresie Logistică cu
-`class_weight="balanced"`) se antrenează din pagina **Import Date**
-(„Antrenează modelul ML”), pe baza cărților deja categorisite din bază.
-N-gramele de caractere (nu de cuvinte) au fost alese pentru că
-generalizează mai bine la formele flexionare ale limbii române
-(„iubire”/„iubit”/„iubește” nu au niciun cuvânt comun, dar multe secvențe
-de caractere comune) — validat prin cross-validare (~55% acuratețe brută,
-față de ~49% cu n-grame de cuvinte). Pragul de încredere sub care o carte
-e marcată „De Confirmat” se ajustează automat în funcție de numărul de
-categorii din bibliotecă (config.py: `ML_CONFIDENCE_RATIO`,
-`ML_MIN_CONFIDENCE`) — calibrat printr-o evaluare pe date separate de
-antrenare (nu doar pe ochi), pentru un echilibru bun între cât de des
-riscă o predicție și cât de des are dreptate când o face.
+## ML classification
 
-**De reținut**: cu un titlu singur, fără nicio descriere, orice
-clasificator de text are foarte puțin semnal de lucru — de aceea multe
-cărți (mai ales cele fără descriere găsită online) vor rămâne „De
-Confirmat”, ceea ce e comportamentul de siguranță dorit, nu o eroare.
-Cu cât categoria are mai multe cărți etichetate (din import-uri proprii,
-re-antrenate periodic), cu atât predicțiile devin mai sigure.
+The model (TF-IDF over character n-grams + Logistic Regression with `class_weight="balanced"`) is
+trained from the **Import Data** page ("Train the ML model"), using the already-categorised books in
+the database. Character n-grams (rather than word n-grams) were chosen because they generalise
+better across Romanian inflected forms ("iubire"/"iubit"/"iubește" share no whole word, but many
+character sequences) — validated through cross-validation (~55% raw accuracy, against ~49% with word
+n-grams). The confidence threshold below which a book is marked "To Confirm" is adjusted
+automatically according to how many categories the library has (`config.py`:
+`ML_CONFIDENCE_RATIO`, `ML_MIN_CONFIDENCE`) — calibrated through an evaluation on data held out from
+training (not by eye), for a reasonable balance between how often it risks a prediction and how
+often it is right when it does.
 
-**Modelul vine deja antrenat** — `ml_model.joblib` este inclus în proiect
-și împachetat în executabil, de unde e copiat automat în folderul de date
-(`%LOCALAPPDATA%\KenoLib`) la prima pornire. Astfel aplicația e pregătită din
-prima rulare să sugereze categorii pentru orice import ulterior, fără niciun
-pas suplimentar.
+**Worth keeping in mind**: with a title alone and no description whatsoever, any text classifier has
+very little signal to work with — which is why many books (especially those with no description
+found online) will stay "To Confirm". That is the intended safe behaviour, not a bug. The more
+labelled books a category accumulates (from your own imports, retrained periodically), the more
+confident the predictions become.
 
-### Îmbogățire online la import (opțional)
+**The model ships already trained** — `ml_model.joblib` is included in the project and bundled into
+the executable, from where it is copied automatically into the data folder
+(`%LOCALAPPDATA%\KenoLib`) on first start. The application is therefore ready from its very first
+run to suggest categories for any later import, with no extra steps.
 
-Pagina **Import Date** are o bifă „Îmbogățește cu date online” — dacă e
-bifată, pentru fiecare carte fără descriere se încearcă mai întâi
-completarea ei (după ISBN sau după titlu+autor) înainte de clasificarea
-ML, exact pentru cazul unui export dintr-un soft vechi care are doar
-titlu/autor/an/ISBN. O descriere mai bogată înseamnă o predicție ML mai
-sigură. E dezactivată implicit (necesită internet și încetinește
-importul); clasificarea ML funcționează integral offline și fără ea,
-doar cu mai puțin semnal din text.
+### Optional online enrichment during import
 
-Dacă, după îmbogățire, modelul ML tot rămâne nesigur, se încearcă drept
-ultimă soluție categoria generică oferită chiar de Google Books (ex.
-„Biography” → Biografie, „Poetry” → Poezie) — folosită doar ca rezervă,
-niciodată în locul unei predicții ML sigure. Același failsafe se aplică
-și la adăugarea manuală a unei cărți (butonul „Caută online” din formular):
-dacă modelul ML rămâne nesigur după căutare, categoria propusă de sursa
-online (dacă a oferit una) e folosită în locul lui „De Confirmat”.
+The **Import Data** page has an "Enrich with online data" checkbox — when ticked, every book without
+a description is first looked up (by ISBN or by title + author) before ML classification, precisely
+for the case of an export from some legacy software that only carries title/author/year/ISBN. A
+richer description means a more confident ML prediction. It is off by default (it needs an internet
+connection and slows the import down); ML classification works entirely offline without it, just
+with less textual signal.
 
-### Categorii
+If, after enrichment, the ML model is still unsure, a last resort is the generic category offered by
+Google Books itself (e.g. "Biography" → Biografie, "Poetry" → Poezie) — used only as a fallback,
+never in place of a confident ML prediction. The same failsafe applies when adding a book manually
+(the "Search online" button in the form): if the model remains unsure after the lookup, the category
+proposed by the online source (if it gave one) is used instead of "To Confirm".
 
-`Literatură română`, `Literatură străină`, `Poezie`, `Teatru`,
-`Fantezie & SF`, `Thriller & Mister`, `Non-ficțiune`, `Știință`,
-`Istorie`, `Biografie`, `Filozofie`, `Psihologie`, `Economie & Afaceri`,
-`Copii`, `Tehnologie`, `Artă` (+ „De Confirmat” pentru cazurile
-nesigure).
+### Categories
 
-### Setul de date folosit la antrenare
+`Literatură română`, `Literatură străină`, `Poezie`, `Teatru`, `Fantezie & SF`, `Thriller & Mister`,
+`Non-ficțiune`, `Știință`, `Istorie`, `Biografie`, `Filozofie`, `Psihologie`, `Economie & Afaceri`,
+`Copii`, `Tehnologie`, `Artă` (plus "De Confirmat" for uncertain cases).
 
-Fișierul [`carti_exemplu_import.csv`](carti_exemplu_import.csv) conține
-373 de cărți reale (majoritatea românești — aproape 50 doar la
-Literatură română, plus autori români în Poezie, Teatru, Filozofie,
-Istorie, Copii etc. — alături de clasici străini), distribuite pe toate
-cele 16 categorii. Include și cărți străine cu descrieri în engleză (pe
-lângă restul, descrise în română) — pentru ca modelul să recunoască și
-textul în engleză pe care „Căutarea online”/îmbogățirea la import îl
-aduce frecvent pentru cărți străine, nu doar vocabular românesc.
+### The training dataset
 
-Acesta e setul folosit pentru a antrena modelul livrat cu aplicația; nu
-a fost importat și în catalogul propriu-zis, ca să nu apară cărți
-„fantomă” pe care nu le ai — catalogul pornește gol. Dacă vrei totuși
-aceste cărți și în Catalog (ex. ca punct de plecare), le poți importa
-oricând din pagina **Import Date**, la fel ca orice alt CSV.
+The file [`carti_exemplu_import.csv`](carti_exemplu_import.csv) contains 373 real books (mostly
+Romanian — nearly 50 in Romanian Literature alone, plus Romanian authors under Poetry, Theatre,
+Philosophy, History, Children's, and so on, alongside foreign classics), spread across all 16
+categories. It also includes foreign books with English descriptions (the rest being described in
+Romanian) — so that the model recognises the English text that "online lookup" and import enrichment
+frequently return for foreign books, not just Romanian vocabulary.
 
-Pentru a re-antrena modelul (de exemplu după ce adaugi propriile cărți):
-pagina **Import Date** → „Selectează fișier CSV” → coloanele se mapează
-automat (Titlu, Autor, An, Categorie, Descriere) → „Începe Import” →
-„Antrenează modelul ML”.
+This is the set used to train the model shipped with the application; it was not imported into the
+catalogue itself, so that no "ghost" books you do not own appear — the catalogue starts empty. If
+you do want these books in the catalogue as a starting point, you can import them at any time from
+the **Import Data** page, like any other CSV.
 
-## Câmpuri suplimentare ale cărții
+To retrain the model (for example after adding your own books): **Import Data** page → "Select CSV
+file" → columns are mapped automatically (Title, Author, Year, Category, Description) → "Start
+import" → "Train the ML model".
 
-Pe lângă titlu/autor/an/descriere/categorie, fiecare carte mai are:
-**Editură** (auto-completată la „Caută online”, sau introdusă manual),
-**Loc apariție**, **Preț** (introdus manual), **Nr. exemplare** (implicit
-1) și **CZU**. Toate sunt disponibile atât în formularul de
-adăugare/editare, cât și la import CSV (mapare de coloane) și în
-tabelul din Catalog.
+## Additional book fields
 
-Bazele de date create cu o versiune mai veche a aplicației se
-actualizează automat la prima pornire (coloanele noi se adaugă fără să
-șteargă cărțile existente).
+Beyond title/author/year/description/category, each book also carries: **publisher**
+(auto-completed by "Search online", or entered manually), **place of publication**, **price**
+(entered manually), **number of copies** (1 by default) and **UDC code**. All of them are available
+in the add/edit form, in the CSV import (through column mapping) and in the catalogue table.
 
-### CZU (Clasificarea Zecimală Universală)
+Databases created with an older version of the application are upgraded automatically on first
+start (new columns are added without deleting existing books).
 
-Butonul „Sugerează” de lângă câmpul CZU oferă un cod de pornire pe baza
-categoriei (ex. `821.135.1` pentru Literatură română, `004` pentru
-Tehnologie — clasele principale UDC/CZU, stabile și bine documentate).
-**Nu este o catalogare CZU completă** — sistemul CZU are subdiviziuni
-mult mai fine (limbă, perioadă, sub-gen) pe care o mapare simplă
-categorie→cod nu le poate acoperi; codul sugerat e un punct de plecare,
-de verificat/rafinat de bibliotecar cu tabelele oficiale CZU. La import
-CSV, dacă nu e mapată o coloană CZU sau celula e goală, se completează
-automat aceeași sugestie.
+### UDC (Universal Decimal Classification)
 
-## Inventar, export PDF și etichete
+The "Suggest" button next to the UDC field offers a starting code based on the category (e.g.
+`821.135.1` for Romanian Literature, `004` for Technology — the main UDC classes, stable and well
+documented). **This is not a complete UDC cataloguing** — the UDC system has far finer subdivisions
+(language, period, sub-genre) that a simple category→code mapping cannot cover; the suggested code
+is a starting point, to be checked and refined by the librarian against the official UDC tables. On
+CSV import, if no UDC column is mapped or the cell is empty, the same suggestion is filled in
+automatically.
 
-Pagina **Inventar** generează lista completă a cărților, fie sortată
-alfabetic după titlu, fie grupată pe categorie (și alfabetic în
-interiorul fiecăreia). Afișează și un rezumat (număr de titluri, total
-exemplare, valoare totală — calculată din preț × exemplare pentru
-cărțile care au preț completat).
+## Inventory, PDF export and labels
 
-Din meniul **„Acțiuni”** al paginii se pot:
-- **Exporta lista ca CSV** — pentru prelucrare în alt program;
-- **Exporta lista ca PDF** — un tabel oficial, printabil (A4);
-- **Genera etichete de raft (PDF)** — o grilă de etichete cu titlu, autor,
-  CZU și un **cod de bare Code128 scanabil** (ISBN-ul cărții, sau un cod
-  intern `KL…` pentru cărțile fără ISBN). Astfel se închide bucla scanner-ului
-  GM65: scanezi la intrare, dar poți și genera etichete pentru propriul fond.
+The **Inventory** page generates the complete list of books, either sorted alphabetically by title
+or grouped by category (and alphabetically within each). It also shows a summary (number of titles,
+total copies, total value — computed as price × copies for the books that have a price).
 
-Pagina **Rapoarte** are, la rândul ei, un buton **„Exportă PDF”** (statistici
-+ cărți pe categorie + top împrumuturi). Export-urile PDF folosesc `reportlab`
-(inclus în `requirements.txt`) și redau corect diacriticele românești.
+From the page's **"Actions"** menu you can:
+
+- **Export the list as CSV** — for processing in another program;
+- **Export the list as PDF** — a formal, printable table (A4);
+- **Generate shelf labels (PDF)** — a grid of labels with title, author, UDC code and a **scannable
+  Code128 barcode** (the book's ISBN, or an internal `KL…` code for books without one). This closes
+  the loop with the GM65 scanner: you scan on intake, but you can also generate labels for your own
+  holdings.
+
+The **Reports** page has its own **"Export PDF"** button (statistics + books per category + top
+loans). PDF exports use `reportlab` (included in `requirements.txt`) and render Romanian diacritics
+correctly.
+
+## Tests
+
+The project has an automated test suite built on `pytest` — **126 tests across 15 files**, covering
+the API service, ISBN and field validation, loans and copy availability, reservations, reports,
+backup and auto-backup, the settings page and the UI details.
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+## Technology stack
+
+| Area | Technologies |
+|---|---|
+| Language | Python 3.9+ |
+| Interface | CustomTkinter, tkinter/ttk |
+| Storage | SQLite |
+| Machine learning | scikit-learn (TF-IDF + Logistic Regression), joblib |
+| External APIs | Google Books, Open Library |
+| PDF & barcodes | reportlab (Code128) |
+| Hardware | pyserial (GM65 barcode scanner) |
+| Testing | pytest |
+| Packaging | PyInstaller, Inno Setup |
